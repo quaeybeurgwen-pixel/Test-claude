@@ -1,5 +1,5 @@
 // Mise en cache de l'application pour l'ouvrir même sans réseau.
-const CACHE = 'sauge-v1';
+const CACHE = 'gwennou-app-v2';
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'js/app.js', 'js/store.js', 'js/util.js', 'js/ui.js', 'js/icons.js', 'js/tasks.js', 'js/quotes.js', 'js/lock.js',

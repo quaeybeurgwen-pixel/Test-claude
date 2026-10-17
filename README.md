@@ -1,4 +1,4 @@
-# Sauge
+# Gwennou App
 
 Application personnelle d'organisation pour iPhone : une page d'accueil qui résume la journée,
 et quatre espaces thématiques.

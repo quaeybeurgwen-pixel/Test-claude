@@ -94,15 +94,15 @@ export function render() {
         <label class="btn ghost">Importer<input type="file" accept="application/json,.json" data-import hidden></label>
       </div>
     </section>
-    <p class="muted small center">Sauge · version 1.0</p>`;
+    <p class="muted small center">Gwennou App · version 1.0</p>`;
 }
 
 async function share(text) {
-  const name = `sauge-sauvegarde-${new Date().toISOString().slice(0, 10)}.json`;
+  const name = `gwennou-app-sauvegarde-${new Date().toISOString().slice(0, 10)}.json`;
   const file = new File([text], name, { type: 'application/json' });
   if (navigator.canShare?.({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title: 'Sauvegarde Sauge' });
+      await navigator.share({ files: [file], title: 'Sauvegarde Gwennou App' });
       return;
     } catch (e) {
       if (e.name === 'AbortError') return;
