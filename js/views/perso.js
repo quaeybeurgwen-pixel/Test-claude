@@ -7,24 +7,26 @@ import { bindActions, header, empty, fab, openForm, toast } from '../ui.js';
 import { icon } from '../icons.js';
 import { sortTasks, taskList, taskActions } from '../tasks.js';
 import * as google from '../integrations/google.js';
-import { ispEventsOn } from './isp.js';
+import { ispEventsOn, ispEventHref, ispEventLabel } from './isp.js';
+import { sessionsOn } from './sport.js';
 
 const TABS = [['taches', 'Tâches'], ['agenda', 'Agenda'], ['habitudes', 'Habitudes'], ['courses', 'Courses'], ['anniversaires', 'Anniversaires']];
 
 // ---------- Tâches ----------
 
 // Liste de tâches groupée par période ; partagée avec l'onglet « Actions » de l'ISP.
-export function groupedTasks(area) {
+export function groupedTasks(area, filter = () => true) {
   const d = today();
   const sunday = addDays(d, 7 - ((parseYmd(d).getDay() + 6) % 7) - 1);
-  const open = get().tasks.filter((t) => t.area === area && !t.done);
+  const mine = get().tasks.filter((t) => t.area === area && filter(t));
+  const open = mine.filter((t) => !t.done);
   const groups = [
     ['En retard', open.filter((t) => t.due && t.due < d)],
     ["Aujourd'hui", open.filter((t) => t.due === d)],
     ['Cette semaine', open.filter((t) => t.due > d && t.due <= sunday)],
     ['Plus tard', open.filter((t) => t.due > sunday)],
     ['Sans échéance', open.filter((t) => !t.due)],
-    ['Terminées (7 derniers jours)', get().tasks.filter((t) => t.area === area && t.done && t.doneAt && diffDays(t.doneAt, d) <= 7)],
+    ['Terminées (7 derniers jours)', mine.filter((t) => t.done && t.doneAt && diffDays(t.doneAt, d) <= 7)],
   ].filter(([, list]) => list.length);
   if (!groups.length) return empty('Aucune tâche. Appuyez sur + pour en ajouter une.');
   return groups.map(([title, list]) => `
@@ -69,7 +71,11 @@ function agendaTab() {
           <span class="item-meta">${esc(e.calName)}${e.location ? ` · ${esc(e.location)}` : ''}</span></span></li>`),
       ...ispEventsOn(day).map((e) => `
         <li class="item event"><span class="cal-dot isp"></span><span class="event-time">${e.time ? esc(e.time) : 'ISP'}</span>
-          <a class="item-main" href="#/isp/echeances"><span class="item-title">${esc(e.title)}</span><span class="item-meta">${esc(e.type)}</span></a></li>`),
+          <a class="item-main" href="${ispEventHref(e)}"><span class="item-title">${esc(e.title)}</span><span class="item-meta">${esc(ispEventLabel(e))}</span></a></li>`),
+      ...sessionsOn(day).map((x) => `
+        <li class="item event ${x.done ? 'done' : ''}"><span class="cal-dot sport"></span><span class="event-time">${x.time ? esc(x.time) : 'Sport'}</span>
+          <a class="item-main" href="#/sport/planning/${day}"><span class="item-title">${esc(x.type)}${x.title ? ` · ${esc(x.title)}` : ''}</span>
+          <span class="item-meta">${[x.distance != null ? `${String(x.distance).replace('.', ',')} km` : '', x.duration != null ? `${x.duration} min` : '', x.done ? 'réalisée' : ''].filter(Boolean).join(' · ')}</span></a></li>`),
       ...birthdaysOn(day).map((b) => `
         <li class="item event"><span class="cal-dot birthday"></span><span class="event-time">Anniv.</span>
           <span class="item-main static"><span class="item-title">${esc(b.name)}${b.age ? ` · ${b.age} ans` : ''}</span></span></li>`),

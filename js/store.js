@@ -26,7 +26,16 @@ function defaults() {
     habits: { targets: { sleep: 8, steps: 8000, relax: 30 }, log: {} },
     courses: [],
     birthdays: [],
-    isp: { events: [], polys: [], students: [] },
+    isp: {
+      formations: [
+        { id: 'greffier', name: 'Greffier', color: 0 },
+        { id: 'dsgj', name: 'DSGJ', full: 'Directeur des services de greffe judiciaires', color: 1 },
+        { id: 'cadre', name: 'Cadre greffier', color: 2 },
+      ],
+      events: [],
+      polys: [],
+      students: [],
+    },
     sport: { goal: { name: 'Marathon', date: null, target: '' }, sessions: [] },
     finances: {
       categories,
@@ -50,7 +59,7 @@ function defaults() {
     settings: {
       name: 'Gwenn',
       pinHash: null,
-      google: { clientId: '', calendars: {}, reminderCalId: null, reminderError: null },
+      google: { clientId: '', calendars: {}, reminderCalId: null, sportCalId: null, reminderError: null },
       ms: { clientId: '', listPerso: null, listIsp: null, lastSync: null, lastError: null },
     },
   };

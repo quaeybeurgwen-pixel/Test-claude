@@ -71,7 +71,8 @@ L'application ne peut modifier que cet agenda-là ; vos autres agendas restent e
 3. Dans Gwennou App : **Réglages → Google Agenda → Se connecter à Google**. Sur l'écran d'autorisation,
    laissez **cochées les deux cases** (voir vos agendas, et gérer les agendas créés par l'application).
 4. La carte Google Agenda affiche **Rappels des tâches : Actifs**.
-5. Dans l'application Google Agenda, menu ☰ : vérifiez que l'agenda **« Gwennou App — Rappels »** est coché.
+5. Dans l'application Google Agenda, menu ☰ : vérifiez que les agendas **« Gwennou App — Rappels »** et **« Gwennou App — Sport »** sont cochés.
+   Le second contient vos séances de sport, copiées automatiquement (sans notification).
 
 **Au quotidien :**
 - Créez une tâche avec une **échéance** et une **heure du rappel** → la notification arrivera à cette heure-là.

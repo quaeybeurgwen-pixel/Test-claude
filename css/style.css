@@ -18,6 +18,9 @@
   --ok: #3F7A4A;
   --ok-soft: #DCEBDD;
   --birthday: #B07A9A;
+  --f0: #3570B8;
+  --f1: #D0612F;
+  --f2: #1C9A70;
   --shadow: 0 1px 2px rgba(60, 50, 30, .06), 0 4px 14px rgba(60, 50, 30, .05);
   --radius: 16px;
   --serif: ui-serif, "New York", "Iowan Old Style", Georgia, serif;
@@ -45,6 +48,9 @@
     --ok: #8CC497;
     --ok-soft: #2D4232;
     --birthday: #D3A2C0;
+    --f0: #4A8BD6;
+    --f1: #D66A3A;
+    --f2: #2AA37A;
     --shadow: none;
     color-scheme: dark;
   }
@@ -157,11 +163,27 @@ details[open] > summary.card-head { margin-bottom: 6px; }
 .badge.soon { background: var(--warn-soft); color: var(--warn); }
 .badge.ok { background: var(--ok-soft); color: var(--ok); }
 
+/* Formations ISP */
+.chip-formation { display: inline-flex; align-items: center; gap: 5px; }
+.f-dot { flex: none; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+.f-dot.f-0 { background: var(--f0); }
+.f-dot.f-1 { background: var(--f1); }
+.f-dot.f-2 { background: var(--f2); }
+.card-head h2 .f-dot { width: 12px; height: 12px; }
+.formation-card { display: block; text-decoration: none; color: inherit; }
+.formation-card .card-head { color: var(--muted); }
+.formation-card .card-head h2 { color: var(--text); }
+.stats { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: .9rem; color: var(--text-2); }
+.stats strong { color: var(--text); }
+.back-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 14px; font-size: .9rem; font-weight: 600; text-decoration: none; }
+.back-link + .top { padding-top: 4px; }
+
 /* Rendez-vous */
 .event-time { flex: none; width: 52px; font-size: .85rem; color: var(--text-2); font-variant-numeric: tabular-nums; line-height: 1.2; }
 .cal-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .cal-dot.isp { background: var(--clay); }
 .cal-dot.birthday { background: var(--birthday); }
+.cal-dot.sport { background: var(--accent); }
 .chips-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .chip-toggle {
   display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px;
@@ -344,3 +366,4 @@ input[type="color"] { width: 32px; height: 32px; border: 0; padding: 0; backgrou
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+[hidden] { display: none !important; }

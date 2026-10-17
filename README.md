@@ -7,8 +7,8 @@ et quatre espaces thématiques.
 |---|---|
 | **Accueil** | Tâches du jour (à cocher), rendez-vous Google Agenda, séance de sport du jour, citation du jour, tâches de la semaine |
 | **Perso** | Tâches (priorité, échéance, rappel), agenda Google avec la couleur de chaque calendrier, habitudes (sommeil, pas, détente), courses, anniversaires |
-| **ISP** | Actions, échéances (concours, concours blancs, inscriptions…) avec actions datées générées automatiquement, suivi des polycopiés, suivi des élèves |
-| **Sport** | Planning hebdomadaire (course à pied, crossfit…), séances répétées, compte à rebours marathon, kilomètres par semaine |
+| **ISP** | Vue d'ensemble par formation (Greffier, DSGJ, Cadre greffier) ; pour chacune : actions, échéances (concours, webinaires, envois de documents…) avec actions datées générées automatiquement, élèves avec planification d'appels et historique, polycopiés |
+| **Sport** | Planning hebdomadaire (course à pied, crossfit…), séances répétées, compte à rebours marathon, kilomètres par semaine ; séances copiées dans l'agenda perso et dans Google Agenda |
 | **Finances** | Dépenses et revenus du mois par catégorie, budgets, charges fixes ajoutées chaque mois, épargne (Livret A, LDDS, assurance vie, PER) |
 
 Les rappels des tâches sont envoyés sous forme d'événements avec notification dans un agenda Google dédié.

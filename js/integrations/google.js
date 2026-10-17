@@ -5,6 +5,7 @@
 // les rendez-vous restent ensuite affichés depuis le cache jusqu'au prochain rafraîchissement.
 import { get, commit } from '../store.js';
 import { uid, ymd, hm, addDays, today, timezone } from '../util.js';
+import { findFormation } from '../formations.js';
 
 const TOKEN_KEY = 'sauge.google.token';
 const STATE_KEY = 'sauge.google.state';
@@ -13,6 +14,7 @@ const API = 'https://www.googleapis.com/calendar/v3';
 const SCOPE_READ = 'https://www.googleapis.com/auth/calendar.readonly';
 const SCOPE_APP = 'https://www.googleapis.com/auth/calendar.app.created';
 const REMINDER_CAL_NAME = 'Gwennou App — Rappels';
+const SPORT_CAL_NAME = 'Gwennou App — Sport';
 // Identifiant client OAuth de Gwennou App (public, sans valeur secrète) ; modifiable dans les Réglages.
 const DEFAULT_CLIENT_ID = '49066473850-dtj7c832nvbsh4a6jn73cab995sq2rlq.apps.googleusercontent.com';
 
@@ -27,6 +29,12 @@ export const isConfigured = () => !!clientId();
 export const tokenValid = () => { const t = readToken(); return !!t && Date.now() < t.exp; };
 export const hasCache = () => !!readCache();
 // Jeton valide et autorisation de gérer l'agenda des rappels.
+// État du rappel d'une tâche : 'sent' (envoyé à Google), 'pending' (pas encore envoyé), 'past', ou null.
+export function reminderState(t) {
+  if (!wantsReminder(t)) return null;
+  if (t.gcal && t.gcal.sig === signature(t)) return 'sent';
+  return reminderDate(t) <= new Date() && !t.gcal ? 'past' : 'pending';
+}
 export const remindersReady = () => tokenValid() && (readToken().scope || '').includes(SCOPE_APP);
 
 export function connect(returnTo = location.hash || '#/accueil') {
@@ -102,8 +110,8 @@ export async function refresh() {
   const list = await api('/users/me/calendarList?minAccessRole=reader');
   const fresh = {};
   for (const c of list.items) {
-    // L'agenda des rappels doublonnerait les tâches : il n'est pas affiché.
-    if (c.id === g.reminderCalId || c.summary === REMINDER_CAL_NAME) continue;
+    // Les agendas créés par l'application doublonneraient les tâches et séances : ils ne sont pas affichés.
+    if ([g.reminderCalId, g.sportCalId].includes(c.id) || [REMINDER_CAL_NAME, SPORT_CAL_NAME].includes(c.summary)) continue;
     const prev = g.calendars[c.id];
     fresh[c.id] = {
       name: c.summaryOverride || c.summary,
@@ -159,42 +167,88 @@ export function eventsOn(day) {
     .sort((a, b) => (a.allDay === b.allDay ? (a.start || '').localeCompare(b.start || '') : a.allDay ? -1 : 1));
 }
 
-// ---------- Rappels des tâches ----------
+// ---------- Envoi vers Google : rappels des tâches et séances de sport ----------
+// Chaque élément envoyé garde { id, calId, sig } dans .gcal ; sig change quand il faut le mettre à jour.
 
 const wantsReminder = (t) => !t.done && !!t.due && !!t.reminder;
-const signature = (t) => [t.title, t.due, t.reminder, t.notes || '', t.area].join('|');
+const signature = (t) => [t.title, t.due, t.reminder, t.notes || '', t.area, t.formationId || ''].join('|');
 const reminderDate = (t) => new Date(`${t.due}T${t.reminder}:00`);
 const isGone = (e) => e.status === 404 || e.status === 410;
+const tz = () => timezone();
+const localDateTime = (d) => ({ dateTime: `${ymd(d)}T${hm(d)}:00`, timeZone: tz() });
 
-// Nombre de rappels créés, modifiés ou supprimés pas encore envoyés à Google.
-export function pendingReminders() {
-  const s = get();
-  return s.gcalDeleted.length + s.tasks.filter((t) => (wantsReminder(t)
-    ? (t.gcal ? t.gcal.sig !== signature(t) : reminderDate(t) > new Date())
-    : !!t.gcal)).length;
-}
-
-function eventBody(t) {
+function reminderBody(t) {
   const start = reminderDate(t);
-  const end = new Date(start.getTime() + 15 * 60000);
-  const tz = timezone();
   return {
-    summary: `${t.area === 'isp' ? 'ISP · ' : ''}${t.title}`,
+    summary: `${t.area === 'isp' ? `${findFormation(t.formationId)?.name || 'ISP'} · ` : ''}${t.title}`,
     description: [t.notes, 'Rappel créé par Gwennou App.'].filter(Boolean).join('\n\n'),
-    start: { dateTime: `${ymd(start)}T${hm(start)}:00`, timeZone: tz },
-    end: { dateTime: `${ymd(end)}T${hm(end)}:00`, timeZone: tz },
+    start: localDateTime(start),
+    end: localDateTime(new Date(start.getTime() + 15 * 60000)),
     reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 0 }] },
     transparency: 'transparent',
   };
 }
 
-async function reminderCalendar() {
-  const g = get().settings.google;
-  if (!g.reminderCalId) {
-    const cal = await api('/calendars', { method: 'POST', body: { summary: REMINDER_CAL_NAME, timeZone: timezone() } });
-    g.reminderCalId = cal.id;
+const sessionSig = (x) => [x.date, x.time, x.type, x.title, x.details, x.distance, x.duration].join('|');
+
+function sessionBody(x) {
+  const km = x.distance != null ? `${String(x.distance).replace('.', ',')} km` : '';
+  const min = x.duration != null ? `${x.duration} min` : '';
+  const timing = x.time
+    ? (() => {
+      const start = new Date(`${x.date}T${x.time}:00`);
+      return { start: localDateTime(start), end: localDateTime(new Date(start.getTime() + (x.duration || 60) * 60000)) };
+    })()
+    : { start: { date: x.date }, end: { date: addDays(x.date, 1) } };
+  return {
+    summary: `${x.type}${x.title ? ` · ${x.title}` : ''}`,
+    description: [[km, min].filter(Boolean).join(' · '), x.details, 'Séance planifiée dans Gwennou App.'].filter(Boolean).join('\n\n'),
+    ...timing,
+    reminders: { useDefault: false, overrides: [] },
+    transparency: 'transparent',
+  };
+}
+
+// Les deux familles d'éléments envoyées dans leur propre agenda.
+const KINDS = [
+  {
+    calKey: 'reminderCalId',
+    calName: REMINDER_CAL_NAME,
+    items: () => get().tasks,
+    wants: wantsReminder,
+    sig: signature,
+    body: reminderBody,
+    tooLate: (t) => reminderDate(t) <= new Date(), // heure déjà passée : inutile de créer le rappel
+  },
+  {
+    calKey: 'sportCalId',
+    calName: SPORT_CAL_NAME,
+    items: () => get().sport.sessions,
+    wants: () => true,
+    sig: sessionSig,
+    body: sessionBody,
+    tooLate: (x) => x.date < addDays(today(), -14), // pas d'envoi rétroactif des vieilles séances
+  },
+];
+
+// Nombre d'éléments (rappels, séances) pas encore envoyés à Google.
+export function pendingReminders() {
+  let n = get().gcalDeleted.length;
+  for (const k of KINDS) {
+    n += k.items().filter((x) => (k.wants(x)
+      ? (x.gcal ? x.gcal.sig !== k.sig(x) : !k.tooLate(x))
+      : !!x.gcal)).length;
   }
-  return g.reminderCalId;
+  return n;
+}
+
+async function ownCalendar(k) {
+  const g = get().settings.google;
+  if (!g[k.calKey]) {
+    const cal = await api('/calendars', { method: 'POST', body: { summary: k.calName, timeZone: tz() } });
+    g[k.calKey] = cal.id;
+  }
+  return g[k.calKey];
 }
 
 let running = null;
@@ -211,48 +265,53 @@ export function syncReminders() {
   return running;
 }
 
-async function doSyncReminders() {
-  if (!remindersReady()) return;
-  const s = get();
-  const g = s.settings.google;
-  const path = (calId, id = '') => `/calendars/${encodeURIComponent(calId)}/events${id ? `/${encodeURIComponent(id)}` : ''}`;
+const path = (calId, id = '') => `/calendars/${encodeURIComponent(calId)}/events${id ? `/${encodeURIComponent(id)}` : ''}`;
+const del = (calId, id) => api(path(calId, id), { method: 'DELETE' }).catch((e) => { if (!isGone(e)) throw e; });
+
+async function syncKind(k) {
+  const g = get().settings.google;
   try {
-    const calId = await reminderCalendar();
-
-    for (const d of [...s.gcalDeleted]) {
-      await api(path(d.calId, d.id), { method: 'DELETE' }).catch((e) => { if (!isGone(e)) throw e; });
-      s.gcalDeleted = s.gcalDeleted.filter((x) => x !== d);
-    }
-
-    for (const t of s.tasks) {
-      if (!wantsReminder(t)) {
-        if (t.gcal) {
-          await api(path(t.gcal.calId, t.gcal.id), { method: 'DELETE' }).catch((e) => { if (!isGone(e)) throw e; });
-          t.gcal = null;
-        }
+    const calId = await ownCalendar(k);
+    for (const x of k.items()) {
+      if (!k.wants(x)) {
+        if (x.gcal) { await del(x.gcal.calId, x.gcal.id); x.gcal = null; }
         continue;
       }
-      if (t.gcal?.sig === signature(t)) continue;
-      if (!t.gcal && reminderDate(t) <= new Date()) continue; // heure déjà passée
-      let target = t.gcal?.calId;
-      let ev = t.gcal
-        ? await api(path(target, t.gcal.id), { method: 'PUT', body: eventBody(t) })
+      if (x.gcal?.sig === k.sig(x)) continue;
+      if (!x.gcal && k.tooLate(x)) continue;
+      let target = x.gcal?.calId;
+      let ev = x.gcal
+        ? await api(path(target, x.gcal.id), { method: 'PUT', body: k.body(x) })
           .catch((e) => { if (isGone(e)) return null; throw e; })
         : null;
       if (!ev) {
         target = calId;
-        ev = await api(path(calId), { method: 'POST', body: eventBody(t) });
+        ev = await api(path(calId), { method: 'POST', body: k.body(x) });
       }
-      t.gcal = { id: ev.id, calId: target, sig: signature(t) };
+      x.gcal = { id: ev.id, calId: target, sig: k.sig(x) };
     }
-    g.reminderError = null;
   } catch (e) {
     if (e.status === 404) {
-      // L'agenda des rappels a été supprimé dans Google : il sera recréé.
-      g.reminderCalId = null;
-      s.tasks.forEach((t) => { t.gcal = null; });
-      s.gcalDeleted = [];
+      // L'agenda a été supprimé dans Google : il sera recréé au prochain envoi.
+      g[k.calKey] = null;
+      k.items().forEach((x) => { x.gcal = null; });
     }
+    throw e;
+  }
+}
+
+async function doSyncReminders() {
+  if (!remindersReady()) return;
+  const s = get();
+  const g = s.settings.google;
+  try {
+    for (const d of [...s.gcalDeleted]) {
+      await del(d.calId, d.id);
+      s.gcalDeleted = s.gcalDeleted.filter((x) => x !== d);
+    }
+    for (const k of KINDS) await syncKind(k);
+    g.reminderError = null;
+  } catch (e) {
     g.reminderError = e.status === 403 ? 'Autorisation manquante : reconnectez Google' : e.message;
   }
   commit();

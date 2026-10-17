@@ -98,6 +98,16 @@ export function openForm({ title, fields, submitLabel = 'Enregistrer', onSubmit,
       </div>
     </form>`);
   const form = body.querySelector('form');
+  // Champs affichés selon la valeur d'un autre champ : showIf: ['area', 'isp'].
+  for (const f of fields.filter((x) => x.showIf)) {
+    const [name, value] = f.showIf;
+    const wrap = form.elements[f.name]?.closest('.field');
+    const ctrl = form.elements[name];
+    if (!wrap || !ctrl) continue;
+    const update = () => { wrap.hidden = ctrl.value !== value; };
+    ctrl.addEventListener('change', update);
+    update();
+  }
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const missing = fields.find((f) => f.required && !form.elements[f.name]?.value.trim());

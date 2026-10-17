@@ -3,6 +3,7 @@ import { get, commit } from '../store.js';
 import { esc, uid, today, addDays, diffDays, fmtDate, fmtLongDate, startOfWeek, countdown } from '../util.js';
 import { bindActions, header, fab, openForm } from '../ui.js';
 import { icon } from '../icons.js';
+import { requestReminderSync } from '../integrations/google.js';
 
 const TABS = [['planning', 'Planning'], ['objectif', 'Objectif']];
 const TYPES = ['Course à pied', 'Crossfit', 'Renforcement', 'Mobilité / étirements', 'Vélo', 'Natation', 'Autre'];
@@ -68,11 +69,14 @@ function sessionForm(s, defaults = {}) {
         }
       }
       commit();
+      requestReminderSync();
     },
     onDelete: s ? () => {
       if (!confirm('Supprimer cette séance ?')) return false;
+      if (s.gcal) get().gcalDeleted.push({ id: s.gcal.id, calId: s.gcal.calId });
       get().sport.sessions = get().sport.sessions.filter((x) => x !== s);
       commit();
+      requestReminderSync();
     } : null,
   });
 }

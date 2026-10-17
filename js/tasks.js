@@ -4,7 +4,8 @@ import { uid, today, nextSunday, esc, relDay, diffDays } from './util.js';
 import { openForm } from './ui.js';
 import { icon } from './icons.js';
 import { requestSync } from './integrations/microsoft.js';
-import { requestReminderSync } from './integrations/google.js';
+import { requestReminderSync, reminderState, isConfigured as googleConfigured } from './integrations/google.js';
+import { formationChip, formationOptions, findFormation } from './formations.js';
 
 const PRIO = { haute: 0, normale: 1, basse: 2 };
 
@@ -44,6 +45,17 @@ export function toggleTask(id) {
   const t = findTask(id);
   if (!t) return;
   updateTask(id, { done: !t.done, doneAt: t.done ? null : today() });
+  // Appel d'élève coché : il est noté dans l'historique de l'élève.
+  const student = t.studentId && get().isp.students.find((s) => s.id === t.studentId);
+  if (student) {
+    student.calls = student.calls || [];
+    if (t.done) {
+      student.calls.push({ date: today(), note: t.notes || 'Appel effectué', taskId: t.id });
+      if (!student.lastContact || student.lastContact < today()) student.lastContact = today();
+    } else {
+      student.calls = student.calls.filter((c) => c.taskId !== t.id);
+    }
+  }
   saveTasks();
 }
 
@@ -77,11 +89,19 @@ export function dueLabel(t) {
   return `<span class="${late ? 'late' : ''}">${late ? `En retard · ${relDay(t.due)}` : relDay(t.due)}</span>`;
 }
 
+const REMINDER_STATE = { sent: 'rappel programmé', pending: 'rappel pas encore envoyé à Google', past: 'heure passée avant l\'envoi' };
+
+function reminderLabel(t) {
+  const st = googleConfigured() ? reminderState(t) : null;
+  const note = st && st !== 'sent' ? ` <span class="late">· ${REMINDER_STATE[st]}</span>` : '';
+  return `<span class="with-icon" title="${st ? REMINDER_STATE[st] : ''}">${icon('bell', 13)}${esc(t.reminder)}${st === 'sent' ? icon('check', 12) : ''}</span>${note}`;
+}
+
 export function taskItem(t, { showDate = true } = {}) {
   const meta = [
-    t.area === 'isp' ? '<span class="chip chip-isp">ISP</span>' : '',
+    t.area === 'isp' ? formationChip(t.formationId) : '',
     showDate ? dueLabel(t) : '',
-    t.reminder && t.due ? `<span class="with-icon">${icon('bell', 13)}${esc(t.reminder)}</span>` : '',
+    t.reminder && t.due ? reminderLabel(t) : '',
   ].filter(Boolean).join('');
   return `
     <li class="item task ${t.done ? 'done' : ''}">
@@ -116,9 +136,11 @@ export function openTaskForm(task, defaults = {}) {
         name: 'area', label: 'Domaine', type: 'select', value: t.area,
         options: [{ value: 'perso', label: 'Personnel' }, { value: 'isp', label: 'ISP' }],
       },
+      { name: 'formationId', label: 'Formation', type: 'select', value: t.formationId || '', options: formationOptions(), showIf: ['area', 'isp'] },
       { name: 'notes', label: 'Notes', type: 'textarea', value: t.notes },
     ],
     onSubmit(v) {
+      if (v.area !== 'isp' || !findFormation(v.formationId)) v.formationId = null;
       if (task) {
         updateTask(task.id, { ...v, notes: v.notes || '' });
         if (linked && v.due && task.offset != null) task.offset = diffDays(linked.date, v.due);
@@ -139,5 +161,5 @@ export function openTaskForm(task, defaults = {}) {
 export const taskActions = {
   'toggle-task': (d) => toggleTask(d.id),
   'edit-task': (d) => openTaskForm(findTask(d.id)),
-  'add-task': (d) => openTaskForm(null, { area: d.area || 'perso', due: d.due || null }),
+  'add-task': (d) => openTaskForm(null, { area: d.area || 'perso', due: d.due || null, formationId: d.formation || null }),
 };

@@ -7,7 +7,7 @@ import { todayTasks, weekTasks, taskList, taskActions } from '../tasks.js';
 import { quoteOfTheDay } from '../quotes.js';
 import * as google from '../integrations/google.js';
 import * as ms from '../integrations/microsoft.js';
-import { ispEventsOn } from './isp.js';
+import { ispEventsOn, ispEventHref, ispEventLabel } from './isp.js';
 import { sessionsOn, sessionLine, nextSession, sessionActions } from './sport.js';
 import { birthdaysOn } from './perso.js';
 
@@ -34,9 +34,9 @@ function appointments(d) {
       <li class="item event">
         <span class="cal-dot isp"></span>
         <span class="event-time">${e.time ? esc(e.time) : 'ISP'}</span>
-        <a class="item-main" href="#/isp/echeances">
+        <a class="item-main" href="${ispEventHref(e)}">
           <span class="item-title">${esc(e.title)}</span>
-          <span class="item-meta">${esc(e.type)}</span>
+          <span class="item-meta">${esc(ispEventLabel(e))}</span>
         </a>
       </li>`);
   }
@@ -81,7 +81,7 @@ export function render() {
 
   return `
     ${header(`${greeting()} ${s.settings.name || ''}`, { subtitle: esc(fmtLongDate(d)) })}
-    ${pending ? `<button class="banner" data-act="gcal-connect">${icon('bell', 16)} ${pending > 1 ? `${pending} rappels en attente` : '1 rappel en attente'} d'envoi — <strong>actualiser Google</strong></button>` : ''}
+    ${pending ? `<button class="banner" data-act="gcal-connect">${icon('bell', 16)} ${pending > 1 ? `${pending} éléments en attente` : '1 élément en attente'} d'envoi à Google — <strong>actualiser</strong></button>` : ''}
     ${msPaused ? `<button class="banner" data-act="ms-reconnect">${icon('refresh', 16)} Synchronisation To Do en pause — <strong>reconnecter</strong></button>` : ''}
 
     <section class="card">

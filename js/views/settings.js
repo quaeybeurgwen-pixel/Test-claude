@@ -46,16 +46,16 @@ function remindersBlock() {
   if (google.remindersReady()) {
     status = g.reminderError
       ? `<p class="late small">${icon('alert', 13)} ${esc(g.reminderError)}</p>`
-      : `<p class="small"><span class="badge ok">Actifs</span> ${pending ? `${pending} en cours d'envoi…` : 'Tous les rappels sont envoyés.'}</p>`;
+      : `<p class="small"><span class="badge ok">Actifs</span> ${pending ? `${pending} en cours d'envoi…` : 'Tout est envoyé à Google.'}</p>`;
   } else if (google.tokenValid()) {
     status = `<p class="small late">${icon('alert', 13)} Autorisation des rappels manquante.</p>
       <button class="btn ghost" data-act="g-reconnect">Autoriser les rappels</button>`;
   } else {
-    status = `<p class="small muted">${pending ? `${pending} rappel(s) en attente : connectez-vous à Google pour les envoyer.` : 'Connectez-vous à Google pour activer les rappels.'}</p>`;
+    status = `<p class="small muted">${pending ? `${pending} élément(s) en attente : connectez-vous à Google pour les envoyer.` : 'Connectez-vous à Google pour activer les rappels.'}</p>`;
   }
   return `
-    <h3>${icon('bell', 15)} Rappels des tâches</h3>
-    <p class="hint">Chaque tâche avec une heure de rappel devient un événement avec notification dans l'agenda « Gwennou App — Rappels ».</p>
+    <h3>${icon('bell', 15)} Rappels et séances de sport</h3>
+    <p class="hint">Chaque tâche avec une heure de rappel devient un événement avec notification dans l'agenda « Gwennou App — Rappels ». Vos séances de sport sont copiées dans l'agenda « Gwennou App — Sport ».</p>
     ${status}`;
 }
 

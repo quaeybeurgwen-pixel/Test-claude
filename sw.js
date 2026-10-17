@@ -1,8 +1,8 @@
 // Mise en cache de l'application pour l'ouvrir même sans réseau.
-const CACHE = 'gwennou-app-v3';
+const CACHE = 'gwennou-app-v4';
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
-  'js/app.js', 'js/store.js', 'js/util.js', 'js/ui.js', 'js/icons.js', 'js/tasks.js', 'js/quotes.js', 'js/lock.js',
+  'js/app.js', 'js/store.js', 'js/util.js', 'js/ui.js', 'js/icons.js', 'js/tasks.js', 'js/formations.js', 'js/quotes.js', 'js/lock.js',
   'js/integrations/google.js', 'js/integrations/microsoft.js',
   'js/views/home.js', 'js/views/perso.js', 'js/views/isp.js', 'js/views/sport.js', 'js/views/finances.js', 'js/views/settings.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
