@@ -1,5 +1,5 @@
 // ISP : vue d'ensemble des formations (Greffier, DSGJ, Cadre greffier…), puis pour chacune
-// ses actions, échéances (concours, webinaires, envois de documents…), élèves et polycopiés.
+// ses actions, échéances (concours, webinaires, envois de documents…) et polycopiés.
 import { get, commit } from '../store.js';
 import {
   esc, uid, today, addDays, diffDays, fmtDate, fmtLongDate, countdown, relDay, nextSunday,
@@ -14,7 +14,7 @@ import {
 } from '../formations.js';
 import { groupedTasks } from './perso.js';
 
-const TABS = [['actions', 'Actions'], ['echeances', 'Échéances'], ['eleves', 'Élèves'], ['polycopies', 'Polycopiés']];
+const TABS = [['actions', 'Actions'], ['echeances', 'Échéances'], ['polycopies', 'Polycopiés']];
 
 const TYPES = ['Concours', 'Concours blanc', 'Webinaire', 'Envoi de documents', 'Inscriptions', 'Résultats', 'Réunion', 'Autre'];
 
@@ -74,7 +74,6 @@ export const ispEventHref = (e) => `#/isp/${fidOf(e)}/echeances`;
 export const ispEventLabel = (e) => [findFormation(e.formationId)?.name, e.type].filter(Boolean).join(' · ');
 
 const actionsOf = (ev) => sortTasks(get().tasks.filter((t) => t.sourceId === ev.id));
-const callsPlanned = (st) => sortTasks(get().tasks.filter((t) => t.studentId === st.id && !t.done));
 
 // ---------- Vue d'ensemble ----------
 
@@ -89,15 +88,12 @@ function formationCard(fid, name, subtitle) {
   const upcoming = s.isp.events.filter(filter).filter((e) => e.date >= d).sort((a, b) => a.date.localeCompare(b.date));
   const next = upcoming[0];
   const webinar = upcoming.find((e) => e.type === 'Webinaire');
-  const calls = open.filter((t) => t.studentId && t.due && t.due <= sunday).length;
   const polys = s.isp.polys.filter(filter).filter((p) => p.status !== 'À jour').length;
-  const students = s.isp.students.filter(filter).length;
 
   const lines = [
     `<li><strong>${week}</strong> action${week > 1 ? 's' : ''} d'ici dimanche${late ? ` · <span class="late">${icon('alert', 13)} ${late} en retard</span>` : ''}</li>`,
     next ? `<li>Prochaine échéance : ${esc(next.title)} · <strong>${countdown(next.date)}</strong></li>` : '<li class="muted">Aucune échéance à venir</li>',
     webinar && webinar !== next ? `<li>Prochain webinaire : ${esc(fmtDate(webinar.date))} · <strong>${countdown(webinar.date)}</strong></li>` : '',
-    `<li>${calls ? `<strong>${calls}</strong> appel${calls > 1 ? 's' : ''} prévu${calls > 1 ? 's' : ''} d'ici dimanche` : 'Aucun appel prévu cette semaine'} · ${students} élève${students > 1 ? 's' : ''}</li>`,
     polys ? `<li><span class="late">${polys} polycopié${polys > 1 ? 's' : ''} à mettre à jour</span></li>` : '',
   ].filter(Boolean).join('');
 
@@ -115,7 +111,7 @@ function formationCard(fid, name, subtitle) {
 function overview() {
   const s = get();
   const todays = todayTasks('isp');
-  const unassigned = [s.tasks.filter((t) => t.area === 'isp' && !t.done), s.isp.events, s.isp.polys, s.isp.students]
+  const unassigned = [s.tasks.filter((t) => t.area === 'isp' && !t.done), s.isp.events, s.isp.polys]
     .some((list) => list.some(inFormation('nc')));
   return `
     ${header('ISP', { subtitle: 'Mes formations' })}
@@ -148,7 +144,7 @@ function manageFormations() {
 
 function formationForm(f) {
   const s = get();
-  const used = f && [s.tasks, s.isp.events, s.isp.polys, s.isp.students].some((list) => list.some((x) => x.formationId === f.id));
+  const used = f && [s.tasks, s.isp.events, s.isp.polys].some((list) => list.some((x) => x.formationId === f.id));
   openForm({
     title: f ? f.name : 'Nouvelle formation',
     fields: [
@@ -326,167 +322,6 @@ function actionForm(ev, task) {
   });
 }
 
-// ---------- Élèves et appels ----------
-
-function studentsTab(fid) {
-  const d = today();
-  const list = get().isp.students.filter(inFormation(fid)).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-  const toCall = list.filter((s) => !callsPlanned(s).length && (!s.lastContact || diffDays(s.lastContact, d) > 30)).length;
-  return `
-    ${list.length ? `<p class="muted small">${list.length} élève${list.length > 1 ? 's' : ''}${toCall ? ` · ${toCall} sans échange depuis plus de 30 jours` : ''}</p>
-      <ul class="list">${list.map((s) => {
-      const next = callsPlanned(s)[0];
-      const meta = next
-        ? `<span class="with-icon">${icon('bell', 13)}Appel prévu ${esc(next.due ? relDay(next.due) : '')}${next.reminder ? ` à ${esc(next.reminder)}` : ''}</span>`
-        : s.lastContact ? `Dernier échange ${esc(relDay(s.lastContact))}` : 'Pas encore d\'échange';
-      const stale = !next && (!s.lastContact || diffDays(s.lastContact, d) > 30);
-      return `<li class="item">
-        <button class="item-main" data-act="student-open" data-id="${s.id}">
-          <span class="item-title">${esc(s.name)}</span>
-          <span class="item-meta">${s.target ? `${esc(s.target)} · ` : ''}${meta}</span>
-        </button>
-        ${stale ? '<span class="badge soon">À appeler</span>' : ''}
-      </li>`;
-    }).join('')}</ul>` : empty('Aucun élève enregistré pour cette formation.')}
-    ${fab('student-add', 'Ajouter un élève')}`;
-}
-
-function contactLinks(contact) {
-  if (!contact) return '';
-  return contact.split(/[,;\n]/).map((c) => c.trim()).filter(Boolean).map((c) => {
-    if (c.includes('@')) return `<a href="mailto:${esc(c)}">${esc(c)}</a>`;
-    if (/^[+\d][\d .-]{5,}$/.test(c)) return `<a href="tel:${esc(c.replace(/[ .-]/g, ''))}">${esc(c)}</a>`;
-    return esc(c);
-  }).join(' · ');
-}
-
-function studentDetail(id) {
-  const st = get().isp.students.find((s) => s.id === id);
-  if (!st) return;
-  const body = openSheet(st.name, '');
-  const paint = () => {
-    const planned = callsPlanned(st);
-    const history = [...(st.calls || [])].sort((a, b) => b.date.localeCompare(a.date));
-    body.innerHTML = `
-      <p>${formationChip(st.formationId, 'Sans formation')}${st.target ? ` <span class="muted">${esc(st.target)}</span>` : ''}</p>
-      ${st.contact ? `<p>${contactLinks(st.contact)}</p>` : ''}
-      ${st.notes ? `<p class="notes">${esc(st.notes)}</p>` : ''}
-      <h3>Appels prévus</h3>
-      ${planned.length ? `<ul class="list">${planned.map((t) => `
-        <li class="item task">
-          <button class="check" data-a="toggle" data-id="${t.id}" aria-label="Appel effectué : ${esc(t.title)}">${icon('check', 16)}</button>
-          <button class="item-main" data-a="edit-call" data-id="${t.id}">
-            <span class="item-title">${t.due ? esc(fmtLongDate(t.due)) : 'Sans date'}${t.reminder ? ` à ${esc(t.reminder)}` : ''}</span>
-            ${t.notes ? `<span class="item-meta">${esc(t.notes)}</span>` : ''}
-          </button>
-        </li>`).join('')}</ul>` : empty('Aucun appel prévu.')}
-      <h3>Historique des échanges</h3>
-      ${history.length ? `<ul class="list">${history.map((c, i) => `
-        <li class="item">
-          <span class="item-main static">
-            <span class="item-title">${esc(fmtDate(c.date, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' }))}</span>
-            ${c.note ? `<span class="item-meta details">${esc(c.note)}</span>` : ''}
-          </span>
-          <button class="icon-btn small" data-a="del-call" data-i="${i}" aria-label="Supprimer cet échange">${icon('close', 14)}</button>
-        </li>`).join('')}</ul>` : empty('Aucun échange noté.')}
-      <div class="form-actions">
-        <button class="btn ghost" data-a="edit">Modifier la fiche</button>
-        <button class="btn ghost" data-a="note">Noter un échange</button>
-        <button class="btn primary" data-a="plan">Planifier un appel</button>
-      </div>`;
-    body._history = history;
-  };
-  paint();
-  body.addEventListener('click', (e) => {
-    const el = e.target.closest('[data-a]');
-    if (!el) return;
-    const a = el.dataset.a;
-    if (a === 'toggle') { toggleTask(el.dataset.id); paint(); }
-    if (a === 'edit-call') callForm(st, findTask(el.dataset.id));
-    if (a === 'plan') callForm(st, null);
-    if (a === 'note') noteForm(st);
-    if (a === 'edit') studentForm(st);
-    if (a === 'del-call') {
-      const c = body._history[Number(el.dataset.i)];
-      if (!confirm('Supprimer cet échange de l\'historique ?')) return;
-      st.calls = st.calls.filter((x) => x !== c);
-      commit();
-      paint();
-    }
-  });
-}
-
-function callForm(st, task) {
-  openForm({
-    title: task ? 'Modifier l\'appel' : `Appeler ${st.name}`,
-    fields: [
-      { name: 'due', label: 'Date', type: 'date', required: true, value: task?.due || addDays(today(), 1) },
-      { name: 'reminder', label: 'Heure (rappel)', type: 'time', value: task?.reminder ?? '10:00' },
-      { name: 'notes', label: 'Objet de l\'appel', type: 'textarea', value: task?.notes, placeholder: 'Point sur les révisions, résultats du concours blanc…' },
-    ],
-    onSubmit(v) {
-      const data = { due: v.due, reminder: v.reminder, notes: v.notes || '' };
-      if (task) updateTask(task.id, data);
-      else addTask({ ...data, title: `Appeler ${st.name}`, area: 'isp', formationId: st.formationId || null, studentId: st.id });
-      saveTasks();
-      setTimeout(() => studentDetail(st.id), 220);
-    },
-    onDelete: task ? () => {
-      removeTask(task.id);
-      saveTasks();
-      setTimeout(() => studentDetail(st.id), 220);
-    } : null,
-    deleteLabel: 'Annuler l\'appel',
-  });
-}
-
-function noteForm(st) {
-  openForm({
-    title: `Échange avec ${st.name}`,
-    fields: [
-      { name: 'date', label: 'Date', type: 'date', required: true, value: today() },
-      { name: 'note', label: 'Compte rendu', type: 'textarea', rows: 4 },
-    ],
-    onSubmit(v) {
-      st.calls = [...(st.calls || []), { date: v.date, note: v.note || '' }];
-      if (!st.lastContact || v.date > st.lastContact) st.lastContact = v.date;
-      commit();
-      setTimeout(() => studentDetail(st.id), 220);
-    },
-  });
-}
-
-function studentForm(s, fid) {
-  openForm({
-    title: s ? s.name : 'Nouvel élève',
-    fields: [
-      { name: 'name', label: 'Nom', required: true, value: s?.name },
-      { name: 'formationId', label: 'Formation', type: 'select', value: s ? s.formationId || '' : (fid !== 'nc' ? fid : ''), options: formationOptions() },
-      { name: 'target', label: 'Promotion / session', value: s?.target },
-      { name: 'contact', label: 'Contact (téléphone, e-mail)', value: s?.contact, placeholder: '06 12 34 56 78, prenom.nom@mail.fr' },
-      { name: 'notes', label: 'Notes de suivi', type: 'textarea', rows: 4, value: s?.notes },
-    ],
-    onSubmit(v) {
-      v.formationId = findFormation(v.formationId) ? v.formationId : null;
-      if (s) {
-        Object.assign(s, v);
-        // Les appels prévus suivent la formation de l'élève.
-        callsPlanned(s).forEach((t) => { if (t.formationId !== v.formationId) updateTask(t.id, { formationId: v.formationId }); });
-      } else {
-        get().isp.students.push({ id: uid(), ...v, lastContact: null, calls: [] });
-      }
-      saveTasks();
-    },
-    onDelete: s ? () => {
-      const planned = callsPlanned(s);
-      if (!confirm(`Supprimer ${s.name}${planned.length ? ` et ses ${planned.length} appels prévus` : ''} ?`)) return false;
-      planned.forEach((t) => removeTask(t.id));
-      get().isp.students = get().isp.students.filter((x) => x !== s);
-      saveTasks();
-    } : null,
-  });
-}
-
 // ---------- Polycopiés ----------
 
 const POLY_STATUS = ['À jour', 'À mettre à jour', 'En cours de révision', 'Envoyé à l\'impression'];
@@ -556,7 +391,6 @@ export function render(sub, param) {
   const body = {
     actions: () => `${groupedTasks('isp', inFormation(f.id))}${fab('add-task', 'Ajouter une action', `data-area="isp" data-formation="${f.id === 'nc' ? '' : f.id}"`)}`,
     echeances: () => eventsTab(f.id),
-    eleves: () => studentsTab(f.id),
     polycopies: () => polysTab(f.id),
   }[tab]();
   return `
@@ -573,8 +407,6 @@ export function mount(root, sub) {
     'type-filter': (d) => { typeFilter = d.type; commit(); },
     'event-add': () => eventForm(null, fid),
     'event-open': (d) => eventDetail(d.id),
-    'student-add': () => studentForm(null, fid),
-    'student-open': (d) => studentDetail(d.id),
     'poly-add': () => polyForm(null, fid),
     'poly-edit': (d) => polyForm(get().isp.polys.find((p) => p.id === d.id), fid),
   });

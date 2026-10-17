@@ -80,17 +80,6 @@ export function toggleTask(id) {
     if (t.done && !next) nextOccurrence(t);
     if (!t.done && next && !next.done) { removeTask(next.id); t.nextId = null; }
   }
-  // Appel d'élève coché : il est noté dans l'historique de l'élève.
-  const student = t.studentId && get().isp.students.find((s) => s.id === t.studentId);
-  if (student) {
-    student.calls = student.calls || [];
-    if (t.done) {
-      student.calls.push({ date: today(), note: t.notes || 'Appel effectué', taskId: t.id });
-      if (!student.lastContact || student.lastContact < today()) student.lastContact = today();
-    } else {
-      student.calls = student.calls.filter((c) => c.taskId !== t.id);
-    }
-  }
   saveTasks();
 }
 
