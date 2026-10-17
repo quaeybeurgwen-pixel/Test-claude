@@ -3,7 +3,7 @@ import { get, commit } from '../store.js';
 import { esc, uid, today, addDays, diffDays, fmtDate, fmtLongDate, startOfWeek, countdown } from '../util.js';
 import { bindActions, header, fab, openForm } from '../ui.js';
 import { icon } from '../icons.js';
-import { requestReminderSync } from '../integrations/google.js';
+import { requestReminderSync, sessionState, isConfigured as googleConfigured } from '../integrations/google.js';
 
 const TABS = [['planning', 'Planning'], ['objectif', 'Objectif']];
 const TYPES = ['Course à pied', 'Crossfit', 'Renforcement', 'Mobilité / étirements', 'Vélo', 'Natation', 'Autre'];
@@ -33,8 +33,16 @@ export function sessionLine(s) {
         <span class="item-title"><span class="chip chip-${typeClass(s.type)}">${esc(s.type)}</span>${esc(s.title || '')}</span>
         ${summary(s) ? `<span class="item-meta">${esc(summary(s))}</span>` : ''}
         ${s.details ? `<span class="item-meta details">${esc(s.details)}</span>` : ''}
+        ${googleState(s)}
       </button>
     </li>`;
+}
+
+function googleState(s) {
+  const st = googleConfigured() ? sessionState(s) : null;
+  if (st === 'sent') return `<span class="item-meta with-icon">${icon('calendar', 13)}Dans Google Agenda ${icon('check', 12)}</span>`;
+  if (st === 'pending') return `<span class="item-meta late with-icon">${icon('calendar', 13)}Pas encore envoyée à Google</span>`;
+  return '';
 }
 
 function sessionForm(s, defaults = {}) {

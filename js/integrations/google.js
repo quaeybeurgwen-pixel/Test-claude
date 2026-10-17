@@ -28,18 +28,19 @@ export const clientId = () => get().settings.google.clientId || DEFAULT_CLIENT_I
 export const isConfigured = () => !!clientId();
 export const tokenValid = () => { const t = readToken(); return !!t && Date.now() < t.exp; };
 export const hasCache = () => !!readCache();
-// Jeton valide et autorisation de gérer l'agenda des rappels.
 // État du rappel d'une tâche : 'sent' (envoyé à Google), 'pending' (pas encore envoyé), 'past', ou null.
 export function reminderState(t) {
   if (!wantsReminder(t)) return null;
   if (t.gcal && t.gcal.sig === signature(t)) return 'sent';
   return reminderDate(t) <= new Date() && !t.gcal ? 'past' : 'pending';
 }
+// Jeton valide et autorisation de gérer les agendas créés par l'application.
 export const remindersReady = () => tokenValid() && (readToken().scope || '').includes(SCOPE_APP);
 
-export function connect(returnTo = location.hash || '#/accueil') {
+// silent : reconnexion sans écran (prompt=none) ; Google revient aussitôt si la session est ouverte.
+export function connect(returnTo = location.hash || '#/accueil', { silent = false } = {}) {
   const state = `gcal-${uid()}`;
-  localStorage.setItem(STATE_KEY, JSON.stringify({ state, returnTo }));
+  localStorage.setItem(STATE_KEY, JSON.stringify({ state, returnTo, silent }));
   const p = new URLSearchParams({
     client_id: clientId(),
     redirect_uri: redirectUri(),
@@ -48,7 +49,22 @@ export function connect(returnTo = location.hash || '#/accueil') {
     include_granted_scopes: 'true',
     state,
   });
+  if (silent) p.set('prompt', 'none');
   location.href = `https://accounts.google.com/o/oauth2/v2/auth?${p}`;
+}
+
+const EVER_KEY = 'sauge.google.ever';
+const ATTEMPT_KEY = 'sauge.google.silentAt';
+
+// Des éléments attendent d'être envoyés et la connexion a expiré : reconnexion automatique
+// (au plus une tentative toutes les 10 minutes, seulement si l'accès a déjà été accordé une fois).
+export function autoReconnect() {
+  const granted = localStorage.getItem(EVER_KEY) || (readToken()?.scope || '').includes(SCOPE_APP);
+  if (remindersReady() || !granted || !pendingReminders()) return false;
+  if (Date.now() - Number(localStorage.getItem(ATTEMPT_KEY) || 0) < 10 * 60 * 1000) return false;
+  localStorage.setItem(ATTEMPT_KEY, String(Date.now()));
+  connect(location.hash || '#/accueil', { silent: true });
+  return true;
 }
 
 // Au retour de Google, le jeton arrive dans l'ancre de l'URL.
@@ -59,12 +75,15 @@ export function handleRedirect() {
   localStorage.removeItem(STATE_KEY);
   history.replaceState(null, '', location.pathname + (saved.returnTo || '#/accueil'));
   if (p.get('state') !== saved.state) return 'Connexion Google : réponse inattendue, réessayez.';
-  if (p.get('error')) return `Connexion Google impossible : ${p.get('error')}`;
+  // Échec d'une reconnexion silencieuse : le bandeau de l'accueil reste là pour se reconnecter à la main.
+  if (p.get('error')) return saved.silent ? null : `Connexion Google impossible : ${p.get('error')}`;
+  if ((p.get('scope') || '').includes(SCOPE_APP)) localStorage.setItem(EVER_KEY, '1');
   localStorage.setItem(TOKEN_KEY, JSON.stringify({
     access: p.get('access_token'),
     scope: p.get('scope') || '',
     exp: Date.now() + (Number(p.get('expires_in') || 3600) - 60) * 1000,
   }));
+  if (saved.silent) return null;
   return (p.get('scope') || '').includes(SCOPE_APP)
     ? 'Google Agenda connecté'
     : 'Google Agenda connecté, mais sans les rappels : cochez l\'autorisation des agendas secondaires.';
@@ -231,6 +250,12 @@ const KINDS = [
   },
 ];
 
+// État d'envoi d'une séance : 'sent', 'pending' ou null (trop ancienne pour être envoyée).
+export function sessionState(x) {
+  if (x.gcal && x.gcal.sig === sessionSig(x)) return 'sent';
+  return !x.gcal && x.date < addDays(today(), -14) ? null : 'pending';
+}
+
 // Nombre d'éléments (rappels, séances) pas encore envoyés à Google.
 export function pendingReminders() {
   let n = get().gcalDeleted.length;
@@ -255,7 +280,10 @@ let running = null;
 let timer = null;
 
 export function requestReminderSync(delay = 1200) {
-  if (!remindersReady()) return;
+  if (!remindersReady()) {
+    setTimeout(autoReconnect, 900);
+    return;
+  }
   clearTimeout(timer);
   timer = setTimeout(() => syncReminders().catch(() => {}), delay);
 }

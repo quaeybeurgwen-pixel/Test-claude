@@ -61,6 +61,7 @@ async function boot() {
   store.onChange(render);
   messages.forEach((m) => toast(m));
 
+  if (google.autoReconnect()) return;
   refreshIntegrations();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshIntegrations(); });
 
@@ -73,6 +74,7 @@ let lastRefresh = 0;
 function refreshIntegrations() {
   if (Date.now() - lastRefresh < 5 * 60 * 1000) return;
   lastRefresh = Date.now();
+  if (google.autoReconnect()) return;
   if (google.tokenValid()) google.refresh().catch(() => {});
   google.requestReminderSync(300);
   if (ms.isConnected()) ms.requestSync(200);
