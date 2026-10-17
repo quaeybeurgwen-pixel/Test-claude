@@ -8,6 +8,8 @@ const TOKEN_KEY = 'sauge.google.token';
 const STATE_KEY = 'sauge.google.state';
 const CACHE_KEY = 'sauge.google.cache';
 const API = 'https://www.googleapis.com/calendar/v3';
+// Identifiant client OAuth de Gwennou App (public, sans valeur secrète) ; modifiable dans les Réglages.
+const DEFAULT_CLIENT_ID = '49066473850-dtj7c832nvbsh4a6jn73cab995sq2rlq.apps.googleusercontent.com';
 
 export const redirectUri = () => location.origin + location.pathname.replace(/index\.html$/, '');
 
@@ -15,7 +17,8 @@ function readToken() {
   try { return JSON.parse(localStorage.getItem(TOKEN_KEY)); } catch { return null; }
 }
 
-export const isConfigured = () => !!get().settings.google.clientId;
+export const clientId = () => get().settings.google.clientId || DEFAULT_CLIENT_ID;
+export const isConfigured = () => !!clientId();
 export const tokenValid = () => { const t = readToken(); return !!t && Date.now() < t.exp; };
 export const hasCache = () => !!readCache();
 
@@ -23,7 +26,7 @@ export function connect(returnTo = location.hash || '#/accueil') {
   const state = `gcal-${uid()}`;
   localStorage.setItem(STATE_KEY, JSON.stringify({ state, returnTo }));
   const p = new URLSearchParams({
-    client_id: get().settings.google.clientId,
+    client_id: clientId(),
     redirect_uri: redirectUri(),
     response_type: 'token',
     scope: 'https://www.googleapis.com/auth/calendar.readonly',

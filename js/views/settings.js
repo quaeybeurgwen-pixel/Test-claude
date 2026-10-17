@@ -13,7 +13,7 @@ function googleCard() {
   const g = get().settings.google;
   const cals = Object.entries(g.calendars);
   let body;
-  if (!g.clientId) {
+  if (!google.isConfigured()) {
     body = `<p class="muted">Renseignez l'identifiant client OAuth créé dans Google Cloud (voir le guide, étape « Google Agenda »).</p>`;
   } else {
     body = `
@@ -33,7 +33,7 @@ function googleCard() {
     <section class="card">
       <div class="card-head"><h2>${icon('calendar', 18)} Google Agenda</h2></div>
       ${body}
-      <button class="link-btn" data-act="g-client">${g.clientId ? 'Modifier l\'identifiant client' : 'Saisir l\'identifiant client'}</button>
+      <button class="link-btn" data-act="g-client">${google.isConfigured() ? 'Modifier l\'identifiant client' : 'Saisir l\'identifiant client'}</button>
       <p class="hint">Adresse de redirection à déclarer chez Google : <code>${esc(google.redirectUri())}</code></p>
     </section>`;
 }
@@ -174,7 +174,7 @@ export function mount(root) {
     },
     'g-client': () => openForm({
       title: 'Google Agenda',
-      fields: [{ name: 'clientId', label: 'Identifiant client OAuth', value: s.google.clientId, placeholder: '…apps.googleusercontent.com' }],
+      fields: [{ name: 'clientId', label: 'Identifiant client OAuth', value: google.clientId(), placeholder: '…apps.googleusercontent.com' }],
       onSubmit(v) { s.google.clientId = v.clientId || ''; commit(); },
     }),
     'g-connect': () => {

@@ -48,7 +48,7 @@ Google exige que chaque application déclare son identité. Vous allez créer un
    - **URI de redirection autorisés** : l'adresse exacte de l'application, par exemple
      `https://quaeybeurgwen-pixel.github.io/Test-claude/`. L'écran Réglages de Gwennou App l'affiche aussi.
 5. Copiez l'**ID client** (il se termine par `.apps.googleusercontent.com`).
-6. Dans Gwennou App : **Réglages → Google Agenda → Saisir l'identifiant client**, collez-le, puis **Se connecter à Google**.
+6. Dans Gwennou App : **Réglages → Google Agenda → Se connecter à Google** (l'identifiant client est déjà intégré à l'application ; il reste modifiable via « Modifier l'identifiant client »).
    Google affiche « Google n'a pas validé cette application » : c'est normal, c'est la vôtre. Touchez **Continuer**.
 
 Tous vos agendas apparaissent avec leur couleur Google. Dans les Réglages, vous pouvez masquer un agenda
