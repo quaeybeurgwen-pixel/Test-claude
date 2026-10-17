@@ -35,6 +35,7 @@ function defaults() {
       events: [],
       polys: [],
       students: [],
+      templates: {},
     },
     sport: { goal: { name: 'Marathon', date: null, target: '' }, sessions: [] },
     finances: {

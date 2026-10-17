@@ -2,7 +2,7 @@
 // ses actions, échéances (concours, webinaires, envois de documents…) et polycopiés.
 import { get, commit } from '../store.js';
 import {
-  esc, uid, today, addDays, diffDays, fmtDate, fmtLongDate, countdown, relDay, nextSunday,
+  esc, uid, today, addDays, diffDays, fmtDate, fmtLongDate, countdown, relDay, nextSunday, plural,
 } from '../util.js';
 import { bindActions, header, empty, fab, openForm, openSheet, toast } from '../ui.js';
 import { icon } from '../icons.js';
@@ -200,12 +200,109 @@ function eventsTab(fid) {
       <button class="chip-toggle ${typeFilter === k ? 'on' : ''}" data-act="type-filter" data-type="${k}" aria-pressed="${typeFilter === k}">${label}</button>`).join('')}
     </div>
     ${upcoming.length ? `<ul class="list">${upcoming.map(eventCard).join('')}</ul>` : empty('Aucune échéance à venir. Ajoutez vos concours, webinaires, envois de documents…')}
+    <button class="btn ghost full" data-act="templates">${icon('settings', 16)} Modèles d'actions${findFormation(fid) ? ` ${esc(findFormation(fid).name)}` : ''}</button>
     ${past.length ? `<details class="group"><summary>Passées (90 derniers jours) <span class="muted">${past.length}</span></summary><ul class="list">${past.map(eventCard).join('')}</ul></details>` : ''}
     ${fab('event-add', 'Ajouter une échéance')}`;
 }
 
-function setActionsFromTemplate(ev, reminder) {
-  for (const [offset, title] of TEMPLATES[ev.type] || []) {
+// ---------- Modèles d'actions (personnalisables par formation et par type d'échéance) ----------
+
+const templateKey = (formationId, type) => `${formationId || ''}|${type}`;
+
+// Actions du modèle : celui de la formation s'il a été personnalisé, sinon celui proposé par défaut.
+function templateFor(formationId, type) {
+  const custom = get().isp.templates?.[templateKey(formationId, type)];
+  const list = custom || (TEMPLATES[type] || []).map(([offset, title]) => ({ offset, title }));
+  return [...list].sort((a, b) => a.offset - b.offset);
+}
+
+const isCustom = (formationId, type) => !!get().isp.templates?.[templateKey(formationId, type)];
+
+function saveTemplate(formationId, type, list) {
+  const s = get();
+  s.isp.templates = s.isp.templates || {};
+  if (list) s.isp.templates[templateKey(formationId, type)] = list;
+  else delete s.isp.templates[templateKey(formationId, type)];
+  commit();
+}
+
+function templateName(formationId, type) {
+  return `${type}${findFormation(formationId) ? ` — ${findFormation(formationId).name}` : ''}`;
+}
+
+// Liste des types d'échéance d'une formation, pour choisir le modèle à modifier.
+function templatesList(fid) {
+  const formationId = fid === 'nc' ? null : fid;
+  const body = openSheet('Modèles d\'actions', '');
+  body.innerHTML = `
+    <p class="hint">Pour chaque type d'échéance${findFormation(formationId) ? ` de la formation ${esc(findFormation(formationId).name)}` : ''}, choisissez les actions créées automatiquement.</p>
+    <ul class="list">${TYPES.map((type) => `
+      <li class="item"><button class="item-main" data-type="${esc(type)}">
+        <span class="item-title">${esc(type)}</span>
+        <span class="item-meta">${plural(templateFor(formationId, type).length, 'action', 'actions')}${isCustom(formationId, type) ? ' · personnalisé' : ''}</span>
+      </button>${icon('chevronRight', 16)}</li>`).join('')}</ul>`;
+  body.addEventListener('click', (e) => {
+    const type = e.target.closest('[data-type]')?.dataset.type;
+    if (type) templateEditor(formationId, type);
+  });
+}
+
+function templateEditor(formationId, type) {
+  const body = openSheet(`Modèle : ${templateName(formationId, type)}`, '');
+  let list = templateFor(formationId, type);
+  const paint = () => {
+    body.innerHTML = `
+      <p class="hint">Ces actions sont créées pour chaque nouvelle échéance « ${esc(type)} »${findFormation(formationId) ? ` de la formation ${esc(findFormation(formationId).name)}` : ''}, à la date calculée à partir du jour J.</p>
+      ${list.length ? `<ul class="list">${list.map((a, i) => `
+        <li class="item">
+          <span class="chip">${offsetLabel(a.offset)}</span>
+          <button class="item-main" data-i="${i}"><span class="item-title">${esc(a.title)}</span></button>
+          <button class="icon-btn small" data-del="${i}" aria-label="Retirer « ${esc(a.title)} »">${icon('close', 14)}</button>
+        </li>`).join('')}</ul>` : empty('Aucune action : les nouvelles échéances de ce type seront créées sans action.')}
+      <div class="form-actions">
+        ${isCustom(formationId, type) ? '<button class="btn ghost" data-reset>Modèle par défaut</button>' : ''}
+        <button class="btn primary" data-add>Ajouter une action</button>
+      </div>`;
+  };
+  const store = (next) => { list = [...next].sort((a, b) => a.offset - b.offset); saveTemplate(formationId, type, list); };
+  const editItem = (i) => {
+    const a = list[i];
+    openForm({
+      title: a ? 'Modifier l\'action du modèle' : 'Nouvelle action du modèle',
+      fields: [
+        { name: 'title', label: 'Action', required: true, value: a?.title, placeholder: 'Ex. : Envoyer le planning de révision' },
+        { name: 'offset', label: 'Nombre de jours avant (−) ou après (+) la date', type: 'number', step: 1, value: a?.offset ?? -7, hint: 'Ex. : −30 = un mois avant, 0 = le jour J.' },
+      ],
+      onSubmit(v) {
+        const item = { title: v.title, offset: Math.round(v.offset ?? 0) };
+        store(a ? list.map((x, j) => (j === i ? item : x)) : [...list, item]);
+        setTimeout(() => templateEditor(formationId, type), 220);
+      },
+      onDelete: a ? () => {
+        store(list.filter((_, j) => j !== i));
+        setTimeout(() => templateEditor(formationId, type), 220);
+      } : null,
+    });
+  };
+  paint();
+  body.addEventListener('click', (e) => {
+    const t = e.target;
+    if (t.closest('[data-add]')) editItem(-1);
+    else if (t.closest('[data-reset]')) {
+      if (!confirm('Revenir au modèle proposé par défaut ?')) return;
+      saveTemplate(formationId, type, null);
+      list = templateFor(formationId, type);
+      paint();
+    } else if (t.closest('[data-del]')) {
+      store(list.filter((_, j) => j !== Number(t.closest('[data-del]').dataset.del)));
+      paint();
+    } else if (t.closest('[data-i]')) editItem(Number(t.closest('[data-i]').dataset.i));
+  });
+}
+
+function setActionsFromTemplate(ev, reminder, skipTitles = []) {
+  for (const { offset, title } of templateFor(ev.formationId, ev.type)) {
+    if (skipTitles.includes(title)) continue;
     // Une action dont la date est déjà passée est ramenée à aujourd'hui.
     const due = addDays(ev.date, offset) < today() ? today() : addDays(ev.date, offset);
     addTask({
@@ -227,7 +324,7 @@ function eventForm(ev, fid) {
       { name: 'time', label: 'Heure (facultatif)', type: 'time', value: ev?.time },
       { name: 'notes', label: 'Notes (lien du webinaire, documents concernés…)', type: 'textarea', value: ev?.notes },
       ...(ev ? [] : [
-        { name: 'template', label: 'Créer les actions types (modifiables ensuite)', type: 'checkbox', value: true },
+        { name: 'template', label: 'Créer les actions du modèle (voir « Modèles d\'actions »)', type: 'checkbox', value: true },
         { name: 'reminder', label: 'Heure des rappels', type: 'time', value: '09:00' },
       ]),
     ],
@@ -282,6 +379,10 @@ function eventDetail(id) {
       <div class="form-actions">
         <button class="btn ghost" data-a="edit-event">Modifier l'échéance</button>
         <button class="btn primary" data-a="add">Ajouter une action</button>
+      </div>
+      <div class="row-btns">
+        <button class="link-btn" data-a="template">${icon('settings', 15)} Modifier le modèle « ${esc(templateName(ev.formationId, ev.type))} »</button>
+        <button class="link-btn" data-a="apply">${icon('refresh', 15)} Remplacer les actions non faites par le modèle</button>
       </div>`;
   };
   paint();
@@ -293,6 +394,16 @@ function eventDetail(id) {
     if (a === 'edit') actionForm(ev, findTask(el.dataset.id));
     if (a === 'add') actionForm(ev, null);
     if (a === 'edit-event') eventForm(ev);
+    if (a === 'template') templateEditor(ev.formationId, ev.type);
+    if (a === 'apply') {
+      if (!confirm('Remplacer les actions non faites de cette échéance par celles du modèle actuel ?')) return;
+      const acts = actionsOf(ev);
+      const reminder = acts.find((t) => t.reminder)?.reminder || '09:00';
+      acts.filter((t) => !t.done).forEach((t) => removeTask(t.id));
+      setActionsFromTemplate(ev, reminder, acts.filter((t) => t.done).map((t) => t.title));
+      saveTasks();
+      paint();
+    }
   });
 }
 
@@ -407,6 +518,7 @@ export function mount(root, sub) {
     'type-filter': (d) => { typeFilter = d.type; commit(); },
     'event-add': () => eventForm(null, fid),
     'event-open': (d) => eventDetail(d.id),
+    templates: () => templatesList(fid),
     'poly-add': () => polyForm(null, fid),
     'poly-edit': (d) => polyForm(get().isp.polys.find((p) => p.id === d.id), fid),
   });
