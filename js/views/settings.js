@@ -27,7 +27,8 @@ function googleCard() {
           <input type="color" value="${esc(c.color)}" data-cal-color="${esc(id)}" aria-label="Couleur de ${esc(c.name)}">
           <span class="item-main static"><span class="item-title">${esc(c.name)}</span></span>
           <label class="switch"><input type="checkbox" data-cal-show="${esc(id)}" ${c.show ? 'checked' : ''}><span></span><span class="sr-only">Afficher ${esc(c.name)}</span></label>
-        </li>`).join('')}</ul>` : ''}`;
+        </li>`).join('')}</ul>` : ''}
+      ${remindersBlock()}`;
   }
   return `
     <section class="card">
@@ -36,6 +37,26 @@ function googleCard() {
       <button class="link-btn" data-act="g-client">${google.isConfigured() ? 'Modifier l\'identifiant client' : 'Saisir l\'identifiant client'}</button>
       <p class="hint">Adresse de redirection à déclarer chez Google : <code>${esc(google.redirectUri())}</code></p>
     </section>`;
+}
+
+function remindersBlock() {
+  const g = get().settings.google;
+  const pending = google.pendingReminders();
+  let status;
+  if (google.remindersReady()) {
+    status = g.reminderError
+      ? `<p class="late small">${icon('alert', 13)} ${esc(g.reminderError)}</p>`
+      : `<p class="small"><span class="badge ok">Actifs</span> ${pending ? `${pending} en cours d'envoi…` : 'Tous les rappels sont envoyés.'}</p>`;
+  } else if (google.tokenValid()) {
+    status = `<p class="small late">${icon('alert', 13)} Autorisation des rappels manquante.</p>
+      <button class="btn ghost" data-act="g-reconnect">Autoriser les rappels</button>`;
+  } else {
+    status = `<p class="small muted">${pending ? `${pending} rappel(s) en attente : connectez-vous à Google pour les envoyer.` : 'Connectez-vous à Google pour activer les rappels.'}</p>`;
+  }
+  return `
+    <h3>${icon('bell', 15)} Rappels des tâches</h3>
+    <p class="hint">Chaque tâche avec une heure de rappel devient un événement avec notification dans l'agenda « Gwennou App — Rappels ».</p>
+    ${status}`;
 }
 
 function msCard() {
@@ -63,13 +84,13 @@ function msCard() {
       </div>`;
   }
   return `
-    <section class="card">
-      <div class="card-head"><h2>${icon('check', 18)} Microsoft To Do</h2></div>
+    <details class="card">
+      <summary class="card-head"><h2>${icon('check', 18)} Microsoft To Do (facultatif)</h2></summary>
       ${body}
       <button class="link-btn" data-act="ms-client">${s.clientId ? 'Modifier l\'identifiant d\'application' : 'Saisir l\'identifiant d\'application'}</button>
       <p class="hint">Adresse de redirection (type « Application monopage ») : <code>${esc(ms.redirectUri())}</code></p>
-      <p class="hint">Les rappels de vos tâches (heure du rappel) sont envoyés sur l'iPhone par l'application Microsoft To Do.</p>
-    </section>`;
+      <p class="hint">Synchronise les tâches avec Microsoft To Do (nécessite un compte Azure, voir le guide).</p>
+    </details>`;
 }
 
 export function render() {
@@ -178,9 +199,11 @@ export function mount(root) {
       onSubmit(v) { s.google.clientId = v.clientId || ''; commit(); },
     }),
     'g-connect': () => {
-      if (google.tokenValid()) google.refresh().then(() => toast('Agenda à jour')).catch((e) => toast(e.message));
-      else google.connect('#/reglages');
+      if (!google.tokenValid()) { google.connect('#/reglages'); return; }
+      google.refresh().catch((e) => toast(e.message));
+      google.syncReminders().then(() => toast(get().settings.google.reminderError || 'Agenda et rappels à jour'));
     },
+    'g-reconnect': () => google.connect('#/reglages'),
     'g-disconnect': () => { if (confirm('Déconnecter Google Agenda ?')) google.disconnect(); },
     'ms-client': () => openForm({
       title: 'Microsoft To Do',

@@ -1,7 +1,7 @@
 # Guide d'installation de Gwennou App
 
 Ce guide se suit dans l'ordre. Les étapes 1 et 2 suffisent pour utiliser l'application.
-Les étapes 3 et 4 (Google Agenda, Microsoft To Do) sont facultatives et peuvent être faites plus tard.
+L'étape 3 (Google Agenda et rappels) est fortement conseillée ; l'étape 5 (Microsoft To Do) est facultative.
 
 ---
 
@@ -59,10 +59,34 @@ Ensuite, les rendez-vous restent affichés et le bouton **Actualiser l'agenda** 
 
 ---
 
-## 4. Relier Microsoft To Do (facultatif, ~15 min, une seule fois)
+## 4. Recevoir les rappels sur l'iPhone
+
+Les rappels passent par **Google Agenda** : chaque tâche qui a une échéance **et** une heure de rappel devient
+un événement avec notification dans un agenda dédié, **« Gwennou App — Rappels »**, créé automatiquement.
+L'application ne peut modifier que cet agenda-là ; vos autres agendas restent en lecture seule.
+
+**Une seule fois :**
+1. Installez l'application **Google Agenda** depuis l'App Store et connectez-vous avec votre Gmail.
+2. **Réglages de l'iPhone → Notifications → Google Agenda** : activez **Autoriser les notifications**.
+3. Dans Gwennou App : **Réglages → Google Agenda → Se connecter à Google**. Sur l'écran d'autorisation,
+   laissez **cochées les deux cases** (voir vos agendas, et gérer les agendas créés par l'application).
+4. La carte Google Agenda affiche **Rappels des tâches : Actifs**.
+5. Dans l'application Google Agenda, menu ☰ : vérifiez que l'agenda **« Gwennou App — Rappels »** est coché.
+
+**Au quotidien :**
+- Créez une tâche avec une **échéance** et une **heure du rappel** → la notification arrivera à cette heure-là.
+- Les actions générées pour les échéances ISP ont un rappel à 09:00 par défaut (modifiable action par action).
+- Cocher, modifier ou supprimer la tâche met à jour ou retire le rappel.
+- Les rappels sont envoyés à Google quand Gwennou App est ouverte et connectée. Si la connexion a expiré
+  (au bout d'1 heure), un bandeau **« … rappel(s) en attente d'envoi — actualiser Google »** apparaît sur
+  l'accueil : touchez-le. Une fois envoyés, les rappels sonnent même si Gwennou App est fermée.
+
+---
+
+## 5. Relier Microsoft To Do (facultatif, ~15 min, une seule fois)
 
 La synchronisation fonctionne dans les deux sens : les tâches créées dans Gwennou App apparaissent dans To Do, et inversement.
-**Les rappels** (heure de rappel d'une tâche, actions ISP) sont envoyés sur l'iPhone par l'application **Microsoft To Do**.
+Pour les rappels, Google Agenda suffit (étape 4) : To Do n'est utile que pour retrouver vos tâches dans l'application To Do.
 
 1. Allez sur <https://entra.microsoft.com> (ou <https://portal.azure.com>) avec le compte Microsoft utilisé dans To Do.
    Avec un compte personnel (outlook.com, hotmail…), Microsoft peut demander de créer d'abord un
@@ -88,7 +112,7 @@ sur l'accueil. Un geste suffit, en général sans retaper le mot de passe.
 
 | Souhait | Situation |
 |---|---|
-| Notifications envoyées par Gwennou App elle-même | Sur iPhone, une application web ne peut pas programmer de notifications sans serveur. Les rappels passent par **Microsoft To Do**, qui les gère parfaitement. |
+| Notifications envoyées par Gwennou App elle-même | Sur iPhone, une application web ne peut pas programmer de notifications sans serveur. Les rappels passent par **Google Agenda** (étape 4). |
 | Pas comptés automatiquement | Une application web ne peut pas lire Apple Santé : saisie manuelle dans *Habitudes*. |
 | Strava / Garmin | Prévu pour une prochaine version. Garmin envoie déjà vos activités dans Strava, et Strava nécessite un petit serveur intermédiaire (gratuit, par exemple Cloudflare Workers). Garmin n'ouvre son API qu'aux entreprises. |
 | Utiliser Gwennou App sur plusieurs appareils | Les données restent sur le téléphone. Exportez / importez pour les transférer. |

@@ -77,9 +77,11 @@ export function render() {
   const doneCount = todays.filter((t) => t.done).length;
 
   const msPaused = ms.isConfigured() && s.settings.ms.listPerso && !ms.isConnected();
+  const pending = google.isConfigured() && !google.remindersReady() ? google.pendingReminders() : 0;
 
   return `
     ${header(`${greeting()} ${s.settings.name || ''}`, { subtitle: esc(fmtLongDate(d)) })}
+    ${pending ? `<button class="banner" data-act="gcal-connect">${icon('bell', 16)} ${pending > 1 ? `${pending} rappels en attente` : '1 rappel en attente'} d'envoi — <strong>actualiser Google</strong></button>` : ''}
     ${msPaused ? `<button class="banner" data-act="ms-reconnect">${icon('refresh', 16)} Synchronisation To Do en pause — <strong>reconnecter</strong></button>` : ''}
 
     <section class="card">

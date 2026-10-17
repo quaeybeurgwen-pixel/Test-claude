@@ -97,6 +97,9 @@ button { font: inherit; color: inherit; }
   background: var(--surface); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px;
   box-shadow: var(--shadow); border: 1px solid var(--border);
 }
+summary.card-head { list-style: none; cursor: pointer; margin-bottom: 0; }
+summary.card-head::-webkit-details-marker { display: none; }
+details[open] > summary.card-head { margin-bottom: 6px; }
 .card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .card-head h2 { font-family: var(--serif); font-size: 1.15rem; flex: 1; display: flex; align-items: center; gap: 8px; }
 .card-head .muted { text-decoration: none; font-size: .9rem; }

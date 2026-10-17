@@ -4,6 +4,7 @@ import { uid, today, nextSunday, esc, relDay, diffDays } from './util.js';
 import { openForm } from './ui.js';
 import { icon } from './icons.js';
 import { requestSync } from './integrations/microsoft.js';
+import { requestReminderSync } from './integrations/google.js';
 
 const PRIO = { haute: 0, normale: 1, basse: 2 };
 
@@ -28,12 +29,14 @@ export function removeTask(id) {
   const s = get();
   const t = findTask(id);
   if (t?.ms) s.msDeleted.push({ id: t.ms.id, listId: t.ms.listId });
+  if (t?.gcal) s.gcalDeleted.push({ id: t.gcal.id, calId: t.gcal.calId });
   s.tasks = s.tasks.filter((x) => x.id !== id);
 }
 
-// Enregistre et lance la synchronisation To Do.
+// Enregistre et envoie les changements à Google Agenda (rappels) et To Do.
 export function saveTasks() {
   commit();
+  requestReminderSync();
   requestSync();
 }
 
@@ -104,7 +107,7 @@ export function openTaskForm(task, defaults = {}) {
     fields: [
       { name: 'title', label: 'Tâche', required: true, value: t.title, placeholder: 'Ex. : Appeler la banque' },
       { name: 'due', label: 'Échéance', type: 'date', value: t.due },
-      { name: 'reminder', label: 'Heure du rappel', type: 'time', value: t.reminder, hint: 'Le rappel est envoyé par Microsoft To Do (si connecté) le jour de l\'échéance.' },
+      { name: 'reminder', label: 'Heure du rappel', type: 'time', value: t.reminder, hint: 'Une notification Google Agenda vous prévient à cette heure-là, le jour de l\'échéance.' },
       {
         name: 'priority', label: 'Priorité', type: 'select', value: t.priority,
         options: [{ value: 'haute', label: 'Haute' }, { value: 'normale', label: 'Normale' }, { value: 'basse', label: 'Basse' }],

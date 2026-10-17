@@ -74,6 +74,7 @@ function refreshIntegrations() {
   if (Date.now() - lastRefresh < 5 * 60 * 1000) return;
   lastRefresh = Date.now();
   if (google.tokenValid()) google.refresh().catch(() => {});
+  google.requestReminderSync(300);
   if (ms.isConnected()) ms.requestSync(200);
 }
 

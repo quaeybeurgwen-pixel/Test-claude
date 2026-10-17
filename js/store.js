@@ -22,6 +22,7 @@ function defaults() {
     version: 1,
     tasks: [],
     msDeleted: [],
+    gcalDeleted: [],
     habits: { targets: { sleep: 8, steps: 8000, relax: 30 }, log: {} },
     courses: [],
     birthdays: [],
@@ -49,7 +50,7 @@ function defaults() {
     settings: {
       name: 'Gwenn',
       pinHash: null,
-      google: { clientId: '', calendars: {} },
+      google: { clientId: '', calendars: {}, reminderCalId: null, reminderError: null },
       ms: { clientId: '', listPerso: null, listIsp: null, lastSync: null, lastError: null },
     },
   };

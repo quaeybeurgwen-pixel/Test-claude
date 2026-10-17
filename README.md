@@ -11,7 +11,8 @@ et quatre espaces thématiques.
 | **Sport** | Planning hebdomadaire (course à pied, crossfit…), séances répétées, compte à rebours marathon, kilomètres par semaine |
 | **Finances** | Dépenses et revenus du mois par catégorie, budgets, charges fixes ajoutées chaque mois, épargne (Livret A, LDDS, assurance vie, PER) |
 
-Les tâches se synchronisent avec **Microsoft To Do** (qui envoie les rappels sur l'iPhone).
+Les rappels des tâches sont envoyés sous forme d'événements avec notification dans un agenda Google dédié.
+Les tâches peuvent aussi se synchroniser avec **Microsoft To Do** (facultatif).
 
 **Installation et connexions : voir [GUIDE.md](GUIDE.md).**
 
@@ -19,7 +20,7 @@ Les tâches se synchronisent avec **Microsoft To Do** (qui envoie les rappels su
 
 - Application web installable (PWA), HTML/CSS/JavaScript sans dépendance ni étape de compilation.
 - Données stockées sur l'appareil (`localStorage`), export/import JSON depuis les Réglages.
-- Google Agenda : OAuth jeton implicite, lecture seule. Microsoft To Do : OAuth code + PKCE via Microsoft Graph.
+- Google Agenda : OAuth jeton implicite ; lecture des agendas, écriture limitée à l'agenda « Gwennou App — Rappels » (`calendar.app.created`). Microsoft To Do : OAuth code + PKCE via Microsoft Graph.
 - Thème clair/sombre automatique, fonctionne hors connexion (service worker).
 
 Pour l'essayer en local : `npx http-server .` puis ouvrir `http://localhost:8080`.
