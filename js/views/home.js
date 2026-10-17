@@ -65,7 +65,9 @@ function appointments(d) {
 function sport(d) {
   const sessions = sessionsOn(d);
   const goal = get().sport.goal;
-  const goalLine = goal.date && diffDays(d, goal.date) >= 0
+  // Le compte à rebours marathon n'accompagne que les séances de course à pied.
+  const running = sessions.some((x) => x.type === 'Course à pied');
+  const goalLine = running && goal.date && diffDays(d, goal.date) >= 0
     ? `<p class="goal-line">${esc(goal.name || 'Objectif')} · <strong>${countdown(goal.date)}</strong></p>` : '';
   if (sessions.length) return `<ul class="list">${sessions.map((s) => sessionLine(s)).join('')}</ul>${goalLine}`;
   const next = nextSession(d);
