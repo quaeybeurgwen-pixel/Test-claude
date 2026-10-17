@@ -1,6 +1,8 @@
 // Tâches (perso et ISP) : création, modification, tri, et formulaire partagé.
 import { get, commit } from './store.js';
-import { uid, today, nextSunday, esc, relDay, diffDays, addDays, startOfWeek, fmtDate } from './util.js';
+import {
+  uid, today, nextSunday, esc, relDay, diffDays, addDays, startOfWeek, fmtDate, addMonthsKeepDay,
+} from './util.js';
 import { openForm } from './ui.js';
 import { icon } from './icons.js';
 import { requestSync } from './integrations/microsoft.js';
@@ -41,10 +43,43 @@ export function saveTasks() {
   requestSync();
 }
 
+// Tâches récurrentes : cocher crée l'occurrence suivante ; décocher la retire (si elle n'a pas été faite).
+const REPEAT = {
+  daily: (d) => addDays(d, 1),
+  weekly: (d) => addDays(d, 7),
+  biweekly: (d) => addDays(d, 14),
+  monthly: (d) => addMonthsKeepDay(d, 1),
+};
+
+function repeatLabel(t) {
+  const day = fmtDate(t.due, { weekday: 'long' });
+  return {
+    daily: 'Chaque jour',
+    weekly: `Chaque ${day}`,
+    biweekly: `Un ${day} sur deux`,
+    monthly: `Le ${Number(t.due.slice(8, 10))} de chaque mois`,
+  }[t.repeat] || '';
+}
+
+function nextOccurrence(t) {
+  let due = REPEAT[t.repeat](t.due);
+  while (due < today()) due = REPEAT[t.repeat](due); // occurrences manquées : on passe à la prochaine à venir
+  const next = addTask({
+    title: t.title, notes: t.notes, priority: t.priority, area: t.area, formationId: t.formationId || null,
+    reminder: t.reminder, repeat: t.repeat, due,
+  });
+  t.nextId = next.id;
+}
+
 export function toggleTask(id) {
   const t = findTask(id);
   if (!t) return;
   updateTask(id, { done: !t.done, doneAt: t.done ? null : today() });
+  if (t.repeat && REPEAT[t.repeat] && t.due) {
+    const next = t.nextId && findTask(t.nextId);
+    if (t.done && !next) nextOccurrence(t);
+    if (!t.done && next && !next.done) { removeTask(next.id); t.nextId = null; }
+  }
   // Appel d'élève coché : il est noté dans l'historique de l'élève.
   const student = t.studentId && get().isp.students.find((s) => s.id === t.studentId);
   if (student) {
@@ -124,6 +159,7 @@ export function taskItem(t, { showDate = true, hideThisWeek = false } = {}) {
     t.area === 'isp' ? formationChip(t.formationId) : '',
     showDate && !sameWeek ? dueLabel(t) : '',
     t.reminder && t.due ? reminderLabel(t) : '',
+    t.repeat && t.due && !t.done ? `<span class="with-icon">${icon('repeat', 13)}${esc(repeatLabel(t))}</span>` : '',
   ].filter(Boolean).join('');
   return `
     <li class="item task ${t.done ? 'done' : ''}">
@@ -160,6 +196,14 @@ export function openTaskForm(task, defaults = {}) {
       },
       { name: 'reminder', label: 'Heure du rappel', type: 'time', value: t.reminder, showIf: ['when', 'day'], hint: 'Une notification Google Agenda vous prévient à cette heure-là, le jour choisi.' },
       {
+        name: 'repeat', label: 'Répéter', type: 'select', value: t.repeat || '', showIf: ['when', 'day'],
+        hint: 'Quand vous cochez la tâche, la suivante est créée automatiquement.',
+        options: [
+          { value: '', label: 'Jamais' }, { value: 'daily', label: 'Chaque jour' }, { value: 'weekly', label: 'Chaque semaine (même jour)' },
+          { value: 'biweekly', label: 'Toutes les deux semaines' }, { value: 'monthly', label: 'Chaque mois (même date)' },
+        ],
+      },
+      {
         name: 'priority', label: 'Priorité', type: 'select', value: t.priority,
         options: [{ value: 'haute', label: 'Haute' }, { value: 'normale', label: 'Normale' }, { value: 'basse', label: 'Basse' }],
       },
@@ -174,7 +218,8 @@ export function openTaskForm(task, defaults = {}) {
       if (v.area !== 'isp' || !findFormation(v.formationId)) v.formationId = null;
       const { when } = v;
       delete v.when;
-      if (when !== 'day') Object.assign(v, { due: null, reminder: null });
+      if (when !== 'day' || !v.due) Object.assign(v, { due: when === 'day' ? v.due : null, repeat: null });
+      if (when !== 'day') v.reminder = null;
       // Une tâche reportée garde sa semaine d'origine tant qu'on ne la change pas.
       v.week = when === 'week' ? (task?.week && task.week < thisMonday && v.week === thisMonday ? task.week : v.week) : null;
       if (task) {

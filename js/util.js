@@ -96,6 +96,12 @@ export function addMonths(key, n) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
 }
 
+// Même jour le mois suivant (ramené au dernier jour du mois si besoin : 31 → 30).
+export function addMonthsKeepDay(s, n) {
+  const key = addMonths(s.slice(0, 7), n);
+  return `${key}-${String(Math.min(Number(s.slice(8, 10)), daysInMonth(key))).padStart(2, '0')}`;
+}
+
 export function daysInMonth(key) {
   const [y, m] = key.split('-').map(Number);
   return new Date(y, m, 0).getDate();

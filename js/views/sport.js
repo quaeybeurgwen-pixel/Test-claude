@@ -3,7 +3,7 @@ import { get, commit } from '../store.js';
 import {
   esc, uid, today, addDays, diffDays, fmtDate, fmtLongDate, startOfWeek, countdown, plural,
 } from '../util.js';
-import { bindActions, header, fab, openForm } from '../ui.js';
+import { bindActions, header, fab, openForm, toast } from '../ui.js';
 import { icon } from '../icons.js';
 import { requestReminderSync, sessionState, isConfigured as googleConfigured } from '../integrations/google.js';
 
@@ -112,6 +112,10 @@ function weekKm(monday) {
 const num = (n) => (Math.round(n * 10) / 10).toString().replace('.', ',');
 const km = (n) => `${num(n)} km`;
 
+// Séances de la semaine antérieures à aujourd'hui et pas encore cochées.
+const pastUndone = (monday) => get().sport.sessions
+  .filter((s) => s.date >= monday && s.date <= addDays(monday, 6) && s.date < today() && !s.done);
+
 function goalCard() {
   const g = get().sport.goal;
   if (!g.date) {
@@ -142,6 +146,7 @@ function planningTab(param) {
       <a class="icon-btn small" href="#/sport/planning/${addDays(monday, 7)}" aria-label="Semaine suivante">${icon('chevronRight', 18)}</a>
     </div>
     <p class="muted small center">Course : ${km(done)} réalisés sur ${km(planned)} prévus</p>
+    ${pastUndone(monday).length ? `<button class="btn ghost full" data-act="sessions-validate" data-monday="${monday}">${icon('check', 16)} Valider les séances passées de la semaine (${pastUndone(monday).length})</button>` : ''}
     ${days.map((day) => {
       const list = sessionsOn(day);
       return `
@@ -215,6 +220,12 @@ export function mount(root) {
   bindActions(root, {
     ...sessionActions,
     'session-add': (d) => sessionForm(null, { date: d.date || today() }),
+    'sessions-validate': (d) => {
+      const list = pastUndone(d.monday);
+      list.forEach((s) => { s.done = true; });
+      commit();
+      toast(`${list.length > 1 ? `${list.length} séances validées` : '1 séance validée'}`);
+    },
     'goal-edit': () => {
       const g = get().sport.goal;
       openForm({
