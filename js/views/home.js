@@ -110,11 +110,6 @@ export function render() {
       ${sport(d)}
     </section>
 
-    <figure class="quote">
-      <blockquote>${esc(q.text)}</blockquote>
-      <figcaption>${esc(q.author)}</figcaption>
-    </figure>
-
     <section class="card">
       <div class="card-head">
         <h2>Cette semaine</h2>
@@ -128,7 +123,12 @@ export function render() {
       ${floating.length ? `<h3 class="subhead">À faire dans la semaine</h3>${taskList(floating, { hideThisWeek: true })}` : ''}
       ${week.length ? `<h3 class="subhead">Prévues d'ici ${esc(fmtDate(nextSunday(d), { weekday: 'long', day: 'numeric' }))}</h3>${taskList(week)}` : ''}
       ${weekAll.length ? '' : empty('Aucune autre tâche cette semaine.')}
-    </section>`;
+    </section>
+
+    <figure class="quote">
+      <blockquote>${esc(q.text)}</blockquote>
+      <figcaption>${esc(q.author)}</figcaption>
+    </figure>`;
 }
 
 export function mount(root) {
