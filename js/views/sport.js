@@ -154,8 +154,12 @@ function planningTab(param) {
 }
 
 function objectiveTab() {
+  // Le graphique commence à la première semaine où des séances sont renseignées (12 semaines au plus).
   const thisMonday = startOfWeek(today());
-  const weeks = Array.from({ length: 10 }, (_, i) => addDays(thisMonday, 7 * (i - 9)));
+  const first = get().sport.sessions.reduce((m, x) => (x.date < m ? x.date : m), today());
+  const start = [startOfWeek(first), addDays(thisMonday, -7 * 11)].sort().pop();
+  const weeks = Array.from({ length: diffDays(start, thisMonday) / 7 + 1 }, (_, i) => addDays(start, 7 * i));
+  const since = fmtDate(start, { day: 'numeric', month: 'short' });
   const data = weeks.map((w) => ({ w, ...weekKm(w) }));
   const max = Math.max(1, ...data.map((x) => Math.max(x.done, x.planned)));
   const bars = data.map((x) => `
@@ -169,8 +173,8 @@ function objectiveTab() {
     ${goalCard()}
     <section class="card">
       <div class="card-head"><h2>Kilomètres de course par semaine</h2></div>
-      <div class="bars" role="img" aria-label="Kilomètres réalisés sur les 10 dernières semaines">${bars}</div>
-      <p class="legend"><span class="key fill"></span>réalisés <span class="key planned"></span>prévus · total 10 semaines : ${km(total)}</p>
+      <div class="bars" role="img" aria-label="Kilomètres réalisés par semaine depuis le ${esc(since)}">${bars}</div>
+      <p class="legend"><span class="key fill"></span>réalisés <span class="key planned"></span>prévus · total depuis le ${esc(since)} : ${km(total)}</p>
       <table class="sr-only"><caption>Kilomètres par semaine</caption><tr><th>Semaine</th><th>Réalisés</th><th>Prévus</th></tr>
         ${data.map((x) => `<tr><td>${esc(x.w)}</td><td>${km(x.done)}</td><td>${km(x.planned)}</td></tr>`).join('')}</table>
     </section>
