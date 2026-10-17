@@ -1,6 +1,8 @@
 // Sport : planning des séances (course à pied, crossfit…) et objectif marathon.
 import { get, commit } from '../store.js';
-import { esc, uid, today, addDays, diffDays, fmtDate, fmtLongDate, startOfWeek, countdown } from '../util.js';
+import {
+  esc, uid, today, addDays, diffDays, fmtDate, fmtLongDate, startOfWeek, countdown, plural,
+} from '../util.js';
 import { bindActions, header, fab, openForm } from '../ui.js';
 import { icon } from '../icons.js';
 import { requestReminderSync, sessionState, isConfigured as googleConfigured } from '../integrations/google.js';
@@ -107,7 +109,8 @@ function weekKm(monday) {
   return { planned, done };
 }
 
-const km = (n) => `${(Math.round(n * 10) / 10).toString().replace('.', ',')} km`;
+const num = (n) => (Math.round(n * 10) / 10).toString().replace('.', ',');
+const km = (n) => `${num(n)} km`;
 
 function goalCard() {
   const g = get().sport.goal;
@@ -162,21 +165,40 @@ function objectiveTab() {
   const since = fmtDate(start, { day: 'numeric', month: 'short' });
   const data = weeks.map((w) => ({ w, ...weekKm(w) }));
   const max = Math.max(1, ...data.map((x) => Math.max(x.done, x.planned)));
+  const current = data[data.length - 1];
+  const previous = data.length > 1 ? data[data.length - 2] : null;
+  const total = data.reduce((n, x) => n + x.done, 0);
+  const wide = data.length <= 6; // assez de place pour écrire « km » au-dessus de chaque barre
+  const weekName = (w) => fmtDate(w, { day: 'numeric', month: 'short' });
   const bars = data.map((x) => `
-    <div class="bar-col" title="Semaine du ${esc(fmtDate(x.w, { day: 'numeric', month: 'short' }))} : ${km(x.done)} sur ${km(x.planned)} prévus" tabindex="0">
-      <span class="bar-value">${x.done ? Math.round(x.done) : ''}</span>
+    <div class="bar-col ${x === current ? 'current' : ''}" title="Semaine du ${esc(weekName(x.w))} : ${km(x.done)} réalisés sur ${km(x.planned)} prévus" tabindex="0">
+      <span class="bar-value">${x.done ? (wide ? km(x.done) : num(x.done)) : ''}</span>
       <span class="bar-track"><span class="bar-planned" style="height:${(x.planned / max) * 100}%"></span><span class="bar-fill" style="height:${(x.done / max) * 100}%"></span></span>
       <span class="bar-label">${esc(fmtDate(x.w, { day: 'numeric', month: 'numeric' }))}</span>
     </div>`).join('');
-  const total = data.reduce((n, x) => n + x.done, 0);
+  const rows = [...data].reverse().map((x) => `
+    <li class="km-row">
+      <div class="km-line">
+        <span>${x === current ? 'Cette semaine' : `Semaine du ${esc(weekName(x.w))}`}</span>
+        <span><strong class="km-done">${km(x.done)}</strong>${x.planned ? ` <span class="muted">/ ${km(x.planned)} prévus</span>` : ''}</span>
+      </div>
+      ${x.planned ? `<div class="meter" title="${Math.round((x.done / x.planned) * 100)} % du prévu"><span class="meter-fill" style="width:${Math.min(100, (x.done / x.planned) * 100)}%"></span></div>` : ''}
+    </li>`).join('');
   return `
     ${goalCard()}
+    <div class="tiles">
+      <div class="tile"><p class="tile-label">Cette semaine</p><p class="tile-value big">${km(current.done)}</p><p class="tile-label">${current.planned ? `sur ${km(current.planned)} prévus` : 'aucune sortie prévue'}</p></div>
+      ${previous ? `<div class="tile"><p class="tile-label">Semaine dernière</p><p class="tile-value big">${km(previous.done)}</p><p class="tile-label">${previous.planned ? `sur ${km(previous.planned)} prévus` : '&nbsp;'}</p></div>` : ''}
+      <div class="tile"><p class="tile-label">Depuis le ${esc(since)}</p><p class="tile-value big">${km(total)}</p><p class="tile-label">${plural(data.length, 'semaine', 'semaines')}</p></div>
+    </div>
     <section class="card">
       <div class="card-head"><h2>Kilomètres de course par semaine</h2></div>
       <div class="bars" role="img" aria-label="Kilomètres réalisés par semaine depuis le ${esc(since)}">${bars}</div>
-      <p class="legend"><span class="key fill"></span>réalisés <span class="key planned"></span>prévus · total depuis le ${esc(since)} : ${km(total)}</p>
-      <table class="sr-only"><caption>Kilomètres par semaine</caption><tr><th>Semaine</th><th>Réalisés</th><th>Prévus</th></tr>
-        ${data.map((x) => `<tr><td>${esc(x.w)}</td><td>${km(x.done)}</td><td>${km(x.planned)}</td></tr>`).join('')}</table>
+      <p class="legend"><span class="key fill"></span>réalisés <span class="key planned"></span>prévus${wide ? '' : ' · valeurs en km'}</p>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>Détail par semaine</h2></div>
+      <ul class="km-list">${rows}</ul>
     </section>
     <section class="card">
       <div class="card-head"><h2>Strava / Garmin</h2></div>
