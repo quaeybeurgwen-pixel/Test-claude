@@ -1,9 +1,13 @@
 // Accueil : la synthèse du jour.
 import { get } from '../store.js';
-import { esc, today, fmtLongDate, fmtDate, nextSunday, countdown, diffDays } from '../util.js';
+import {
+  esc, today, fmtLongDate, fmtDate, nextSunday, countdown, diffDays, startOfWeek,
+} from '../util.js';
 import { bindActions, header, empty } from '../ui.js';
 import { icon } from '../icons.js';
-import { todayTasks, weekTasks, taskList, taskActions } from '../tasks.js';
+import {
+  todayTasks, weekTasks, weekOnlyTasks, taskList, taskActions, addTask, saveTasks,
+} from '../tasks.js';
 import { quoteOfTheDay } from '../quotes.js';
 import * as google from '../integrations/google.js';
 import * as ms from '../integrations/microsoft.js';
@@ -74,7 +78,10 @@ export function render() {
   const q = quoteOfTheDay(d);
   const todays = todayTasks();
   const week = weekTasks();
+  const floating = weekOnlyTasks();
   const doneCount = todays.filter((t) => t.done).length;
+  const weekAll = [...floating, ...week];
+  const weekDone = weekAll.filter((t) => t.done).length;
 
   const msPaused = ms.isConfigured() && s.settings.ms.listPerso && !ms.isConnected();
   const pending = google.isConfigured() && !google.remindersReady() ? google.pendingReminders() : 0;
@@ -111,13 +118,27 @@ export function render() {
     <section class="card">
       <div class="card-head">
         <h2>Cette semaine</h2>
-        <span class="muted">jusqu'au ${esc(fmtDate(nextSunday(d), { weekday: 'long', day: 'numeric' }))}</span>
+        <span class="muted">${weekAll.length ? `${weekDone}/${weekAll.length}` : ''}</span>
+        <button class="icon-btn small" data-act="add-task" data-week="${startOfWeek(d)}" aria-label="Ajouter une tâche pour la semaine">${icon('plus', 18)}</button>
       </div>
-      ${week.length ? taskList(week) : empty('Aucune autre tâche cette semaine.')}
+      <form class="inline-add" data-form="week-add">
+        <input id="week-input" name="title" placeholder="Nouvelle tâche…" autocomplete="off" enterkeyhint="done" aria-label="Nouvelle tâche pour la semaine">
+        <button class="btn primary" type="submit">Ajouter</button>
+      </form>
+      ${floating.length ? `<h3 class="subhead">À faire dans la semaine</h3>${taskList(floating, { hideThisWeek: true })}` : ''}
+      ${week.length ? `<h3 class="subhead">Prévues d'ici ${esc(fmtDate(nextSunday(d), { weekday: 'long', day: 'numeric' }))}</h3>${taskList(week)}` : ''}
+      ${weekAll.length ? '' : empty('Aucune autre tâche cette semaine.')}
     </section>`;
 }
 
 export function mount(root) {
+  root.querySelector('[data-form="week-add"]')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const title = e.target.elements.title.value.trim();
+    if (!title) return;
+    addTask({ title, week: startOfWeek(today()) });
+    saveTasks();
+  });
   bindActions(root, {
     ...taskActions,
     ...sessionActions,

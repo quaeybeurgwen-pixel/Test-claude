@@ -7,7 +7,7 @@ import {
 import { bindActions, header, empty, fab, openForm, openSheet, toast } from '../ui.js';
 import { icon } from '../icons.js';
 import {
-  addTask, removeTask, saveTasks, toggleTask, sortTasks, taskActions, findTask, updateTask, todayTasks, taskList,
+  addTask, removeTask, saveTasks, toggleTask, sortTasks, taskActions, findTask, updateTask, todayTasks, taskList, isWeekTask,
 } from '../tasks.js';
 import {
   formations, findFormation, inFormation, formationOptions, formationChip, formationDot,
@@ -85,7 +85,7 @@ function formationCard(fid, name, subtitle) {
   const filter = inFormation(fid);
   const open = s.tasks.filter((t) => t.area === 'isp' && !t.done && filter(t));
   const late = open.filter((t) => t.due && t.due < d).length;
-  const week = open.filter((t) => t.due && t.due >= d && t.due <= sunday).length;
+  const week = open.filter((t) => (t.due && t.due >= d && t.due <= sunday) || isWeekTask(t)).length;
   const upcoming = s.isp.events.filter(filter).filter((e) => e.date >= d).sort((a, b) => a.date.localeCompare(b.date));
   const next = upcoming[0];
   const webinar = upcoming.find((e) => e.type === 'Webinaire');

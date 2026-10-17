@@ -1,6 +1,6 @@
 // Tâches (perso et ISP) : création, modification, tri, et formulaire partagé.
 import { get, commit } from './store.js';
-import { uid, today, nextSunday, esc, relDay, diffDays } from './util.js';
+import { uid, today, nextSunday, esc, relDay, diffDays, addDays, startOfWeek, fmtDate } from './util.js';
 import { openForm } from './ui.js';
 import { icon } from './icons.js';
 import { requestSync } from './integrations/microsoft.js';
@@ -59,9 +59,12 @@ export function toggleTask(id) {
   saveTasks();
 }
 
+// Une tâche « dans la semaine » (t.week = lundi de la semaine) se range comme si elle était due le dimanche.
+const sortKey = (t) => t.due || (t.week ? addDays(t.week, 6) : '9999');
+
 export function sortTasks(list) {
   return [...list].sort((a, b) => (a.done - b.done)
-    || (a.due || '9999').localeCompare(b.due || '9999')
+    || sortKey(a).localeCompare(sortKey(b))
     || (PRIO[a.priority] ?? 1) - (PRIO[b.priority] ?? 1)
     || a.createdAt - b.createdAt);
 }
@@ -75,16 +78,34 @@ export function todayTasks(area) {
     && ((!t.done && t.due <= d) || (t.done && t.due <= d && t.doneAt === d))));
 }
 
-// De demain jusqu'à dimanche.
+// Tâche « dans la semaine » de la semaine en cours (ou d'une semaine passée, non faite : reportée).
+export const isWeekTask = (t, monday = startOfWeek(today())) => !t.due && !!t.week && t.week <= monday;
+
+// Tâches « dans la semaine » : à faire, ou cochées depuis lundi (elles restent visibles, barrées).
+export function weekOnlyTasks(area) {
+  const monday = startOfWeek(today());
+  return sortTasks(get().tasks.filter(inArea(area)).filter((t) => isWeekTask(t, monday)
+    && (!t.done || (t.doneAt && t.doneAt >= monday))));
+}
+
+// Tâches datées de demain jusqu'à dimanche.
 export function weekTasks(area) {
   const d = today();
   const end = nextSunday(d);
+  const monday = startOfWeek(d);
   return sortTasks(get().tasks.filter(inArea(area)).filter((t) => t.due && t.due > d && t.due <= end
-    && (!t.done || t.doneAt === d)));
+    && (!t.done || (t.doneAt && t.doneAt >= monday))));
+}
+
+function weekLabel(t) {
+  const monday = startOfWeek(today());
+  if (t.week === monday) return '<span>Cette semaine</span>';
+  if (t.week > monday) return `<span>${t.week === addDays(monday, 7) ? 'Semaine prochaine' : `Semaine du ${esc(fmtDate(t.week, { day: 'numeric', month: 'short' }))}`}</span>`;
+  return t.done ? '' : `<span class="late">Reportée · semaine du ${esc(fmtDate(t.week, { day: 'numeric', month: 'short' }))}</span>`;
 }
 
 export function dueLabel(t) {
-  if (!t.due) return '';
+  if (!t.due) return t.week ? weekLabel(t) : '';
   const late = !t.done && t.due < today();
   return `<span class="${late ? 'late' : ''}">${late ? `En retard · ${relDay(t.due)}` : relDay(t.due)}</span>`;
 }
@@ -97,10 +118,11 @@ function reminderLabel(t) {
   return `<span class="with-icon" title="${st ? REMINDER_STATE[st] : ''}">${icon('bell', 13)}${esc(t.reminder)}${st === 'sent' ? icon('check', 12) : ''}</span>${note}`;
 }
 
-export function taskItem(t, { showDate = true } = {}) {
+export function taskItem(t, { showDate = true, hideThisWeek = false } = {}) {
+  const sameWeek = hideThisWeek && !t.due && t.week === startOfWeek(today());
   const meta = [
     t.area === 'isp' ? formationChip(t.formationId) : '',
-    showDate ? dueLabel(t) : '',
+    showDate && !sameWeek ? dueLabel(t) : '',
     t.reminder && t.due ? reminderLabel(t) : '',
   ].filter(Boolean).join('');
   return `
@@ -121,13 +143,22 @@ export function taskList(list, opts) {
 export function openTaskForm(task, defaults = {}) {
   const t = task || { priority: 'normale', area: 'perso', ...defaults };
   const linked = task?.sourceId ? get().isp.events.find((e) => e.id === task.sourceId) : null;
+  const thisMonday = startOfWeek(today());
   openForm({
     title: task ? 'Modifier la tâche' : 'Nouvelle tâche',
     intro: linked ? `<p class="hint">Action liée à l'échéance ISP « ${esc(linked.title)} ».</p>` : '',
     fields: [
       { name: 'title', label: 'Tâche', required: true, value: t.title, placeholder: 'Ex. : Appeler la banque' },
-      { name: 'due', label: 'Échéance', type: 'date', value: t.due },
-      { name: 'reminder', label: 'Heure du rappel', type: 'time', value: t.reminder, hint: 'Une notification Google Agenda vous prévient à cette heure-là, le jour de l\'échéance.' },
+      {
+        name: 'when', label: 'Quand ?', type: 'select', value: t.due ? 'day' : t.week ? 'week' : (task ? 'none' : 'day'),
+        options: [{ value: 'day', label: 'Un jour précis' }, { value: 'week', label: 'Dans la semaine (sans jour précis)' }, { value: 'none', label: 'Sans échéance' }],
+      },
+      { name: 'due', label: 'Jour', type: 'date', value: t.due, showIf: ['when', 'day'] },
+      {
+        name: 'week', label: 'Semaine', type: 'select', value: t.week && t.week > thisMonday ? addDays(thisMonday, 7) : thisMonday, showIf: ['when', 'week'],
+        options: [{ value: thisMonday, label: 'Cette semaine' }, { value: addDays(thisMonday, 7), label: 'La semaine prochaine' }],
+      },
+      { name: 'reminder', label: 'Heure du rappel', type: 'time', value: t.reminder, showIf: ['when', 'day'], hint: 'Une notification Google Agenda vous prévient à cette heure-là, le jour choisi.' },
       {
         name: 'priority', label: 'Priorité', type: 'select', value: t.priority,
         options: [{ value: 'haute', label: 'Haute' }, { value: 'normale', label: 'Normale' }, { value: 'basse', label: 'Basse' }],
@@ -141,6 +172,11 @@ export function openTaskForm(task, defaults = {}) {
     ],
     onSubmit(v) {
       if (v.area !== 'isp' || !findFormation(v.formationId)) v.formationId = null;
+      const { when } = v;
+      delete v.when;
+      if (when !== 'day') Object.assign(v, { due: null, reminder: null });
+      // Une tâche reportée garde sa semaine d'origine tant qu'on ne la change pas.
+      v.week = when === 'week' ? (task?.week && task.week < thisMonday && v.week === thisMonday ? task.week : v.week) : null;
       if (task) {
         updateTask(task.id, { ...v, notes: v.notes || '' });
         if (linked && v.due && task.offset != null) task.offset = diffDays(linked.date, v.due);
@@ -161,5 +197,7 @@ export function openTaskForm(task, defaults = {}) {
 export const taskActions = {
   'toggle-task': (d) => toggleTask(d.id),
   'edit-task': (d) => openTaskForm(findTask(d.id)),
-  'add-task': (d) => openTaskForm(null, { area: d.area || 'perso', due: d.due || null, formationId: d.formation || null }),
+  'add-task': (d) => openTaskForm(null, {
+    area: d.area || 'perso', due: d.due || null, formationId: d.formation || null, week: d.week || null,
+  }),
 };

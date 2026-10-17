@@ -5,7 +5,7 @@ import {
 } from '../util.js';
 import { bindActions, header, empty, fab, openForm, toast } from '../ui.js';
 import { icon } from '../icons.js';
-import { sortTasks, taskList, taskActions } from '../tasks.js';
+import { sortTasks, taskList, taskActions, isWeekTask } from '../tasks.js';
 import * as google from '../integrations/google.js';
 import { ispEventsOn, ispEventHref, ispEventLabel } from './isp.js';
 import { sessionsOn } from './sport.js';
@@ -23,9 +23,9 @@ export function groupedTasks(area, filter = () => true) {
   const groups = [
     ['En retard', open.filter((t) => t.due && t.due < d)],
     ["Aujourd'hui", open.filter((t) => t.due === d)],
-    ['Cette semaine', open.filter((t) => t.due > d && t.due <= sunday)],
-    ['Plus tard', open.filter((t) => t.due > sunday)],
-    ['Sans échéance', open.filter((t) => !t.due)],
+    ['Cette semaine', open.filter((t) => (t.due > d && t.due <= sunday) || isWeekTask(t))],
+    ['Plus tard', open.filter((t) => t.due > sunday || (!t.due && t.week && !isWeekTask(t)))],
+    ['Sans échéance', open.filter((t) => !t.due && !t.week)],
     ['Terminées (7 derniers jours)', mine.filter((t) => t.done && t.doneAt && diffDays(t.doneAt, d) <= 7)],
   ].filter(([, list]) => list.length);
   if (!groups.length) return empty('Aucune tâche. Appuyez sur + pour en ajouter une.');
