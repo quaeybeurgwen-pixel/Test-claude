@@ -156,7 +156,7 @@ function planningTab(param) {
             <h3>${esc(fmtDate(day, { weekday: 'long', day: 'numeric' }))}</h3>
             <button class="icon-btn small" data-act="session-add" data-date="${day}" aria-label="Ajouter une séance le ${esc(fmtDate(day, { weekday: 'long', day: 'numeric' }))}">${icon('plus', 16)}</button>
           </div>
-          ${list.length ? `<ul class="list">${list.map(sessionLine).join('')}</ul>` : '<p class="muted small rest">Repos</p>'}
+          ${list.length ? `<ul class="list">${list.map((x) => sessionLine(x)).join('')}</ul>` : '<p class="muted small rest">Repos</p>'}
         </section>`;
     }).join('')}
     ${fab('session-add', 'Ajouter une séance', `data-date="${today() >= monday && today() <= addDays(monday, 6) ? today() : monday}"`)}`;
