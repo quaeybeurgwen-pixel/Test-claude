@@ -27,7 +27,8 @@ function summary(s) {
 
 const typeClass = (type) => (type === 'Course à pied' ? 'run' : type === 'Crossfit' ? 'crossfit' : 'other');
 
-export function sessionLine(s) {
+// withGoogle : afficher si la séance est dans Google Agenda (pas sur l'accueil).
+export function sessionLine(s, { withGoogle = true } = {}) {
   return `
     <li class="item task ${s.done ? 'done' : ''}">
       <button class="check ${s.done ? 'on' : ''}" data-act="session-toggle" data-id="${s.id}" aria-pressed="${!!s.done}" aria-label="Séance faite : ${esc(s.title || s.type)}">${icon('check', 16)}</button>
@@ -35,7 +36,7 @@ export function sessionLine(s) {
         <span class="item-title"><span class="chip chip-${typeClass(s.type)}">${esc(s.type)}</span>${esc(s.title || '')}</span>
         ${summary(s) ? `<span class="item-meta">${esc(summary(s))}</span>` : ''}
         ${s.details ? `<span class="item-meta details">${esc(s.details)}</span>` : ''}
-        ${googleState(s)}
+        ${withGoogle ? googleState(s) : ''}
       </button>
     </li>`;
 }

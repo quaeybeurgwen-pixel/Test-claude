@@ -69,7 +69,7 @@ function sport(d) {
   const running = sessions.some((x) => x.type === 'Course à pied');
   const goalLine = running && goal.date && diffDays(d, goal.date) >= 0
     ? `<p class="goal-line">${esc(goal.name || 'Objectif')} · <strong>${countdown(goal.date)}</strong></p>` : '';
-  if (sessions.length) return `<ul class="list">${sessions.map((s) => sessionLine(s)).join('')}</ul>${goalLine}`;
+  if (sessions.length) return `<ul class="list">${sessions.map((s) => sessionLine(s, { withGoogle: false })).join('')}</ul>${goalLine}`;
   const next = nextSession(d);
   return `${empty('Pas de séance prévue : jour de repos.')}${next ? `<p class="hint">Prochaine séance : ${esc(fmtDate(next.date, { weekday: 'long' }))} — ${esc(next.title || next.type)}</p>` : ''}${goalLine}`;
 }
